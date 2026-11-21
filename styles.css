@@ -386,3 +386,11 @@ button.tag { color: var(--accent); }
 .leaflet-container a.leaflet-popup-close-button { width: 28px; height: 28px; top: 6px; right: 6px; font-size: 20px; line-height: 26px; color: var(--muted); border-radius: 50%; }
 .leaflet-container a.leaflet-popup-close-button:hover { background: var(--surface-2); color: var(--text); }
 .leaflet-popup-content .pop-title { padding-right: 22px; }
+
+/* no page zoom on the app UI: double-tap and pinch only zoom the map */
+html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }
+button, a, label, .tab, .round-btn, .fab, .chip, .seg button { touch-action: manipulation; }
+#map, .pd-map { touch-action: none; }
+#viewer { touch-action: pan-x pan-y; }
+/* iOS zooms into fields with text smaller than 16px; keep them at 16px on phones */
+@media (max-width: 899px) { input, select, textarea { font-size: 16px !important; } }

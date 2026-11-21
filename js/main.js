@@ -17,6 +17,14 @@ async function backfillLocations() {
   if (fix.length) await DB.putMany('pins', fix);
 }
 
+/* iOS Safari ignores user-scalable=no, so stop pinch gestures outside the map ourselves. */
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => {
+  if (!e.target.closest || !e.target.closest('#map, .pd-map')) e.preventDefault();
+}, { passive: false }));
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1 && !e.target.closest('#map, .pd-map')) e.preventDefault();
+}, { passive: false });
+
 (async function boot() {
   applyTheme();
   S.mode = Prefs.get('mode', 'th') === 'world' ? 'world' : 'th';
