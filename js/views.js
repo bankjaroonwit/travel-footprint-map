@@ -588,32 +588,46 @@ async function makeShareCard() {
   return cv;
 }
 
+let shareFile = null;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canShareFile = f => { try { return !!(f && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })); } catch { return false; } };
+
 ACTIONS['share-card'] = async () => {
   openSheet(`${sheetHead('รูปสรุปการเดินทาง')}<p class="muted">กำลังสร้างรูป…</p>`);
   shareCanvas = await makeShareCard();
-  const canShare = !!(navigator.canShare && navigator.share);
+  // Build the file up front: iPhone only allows share() straight from a tap, not after waiting for toBlob.
+  const blob = await new Promise(r => shareCanvas.toBlob(r, 'image/png'));
+  shareFile = blob && new File([blob], `footprint-${today()}.png`, { type: 'image/png' });
+  const canShare = canShareFile(shareFile);
   openSheet(`
     ${sheetHead('รูปสรุปการเดินทาง')}
-    <img class="share-img" src="${shareCanvas.toDataURL('image/png')}" alt="รูปสรุปการเดินทาง">
+    <img class="share-img" src="${URL.createObjectURL(blob)}" alt="รูปสรุปการเดินทาง">
     <div class="row">
       <button class="btn" data-action="save-card"><i class="ti ti-download"></i> บันทึกรูป</button>
       ${canShare ? '<button class="btn primary" data-action="send-card"><i class="ti ti-share"></i> แชร์</button>' : ''}
-    </div>`);
+    </div>
+    <p class="muted small" style="text-align:center;margin:10px 0 0">บันทึกไม่ได้? กดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ"</p>`);
 };
-ACTIONS['save-card'] = () => {
+ACTIONS['save-card'] = async () => {
+  if (!shareFile) return;
+  // iPhone home-screen apps can't download files; its share sheet has "Save Image" instead.
+  if (isIOS() && canShareFile(shareFile)) {
+    try { await navigator.share({ files: [shareFile] }); } catch { /* cancelled */ }
+    return;
+  }
+  const url = URL.createObjectURL(shareFile);
   const a = document.createElement('a');
-  a.href = shareCanvas.toDataURL('image/png');
-  a.download = `footprint-${today()}.png`;
+  a.href = url;
+  a.download = shareFile.name;
+  document.body.appendChild(a);
   a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast('บันทึกรูปแล้ว ดูได้ในโฟลเดอร์ดาวน์โหลด', 3000);
 };
-ACTIONS['send-card'] = () => {
-  shareCanvas.toBlob(async blob => {
-    const file = new File([blob], `footprint-${today()}.png`, { type: 'image/png' });
-    try {
-      if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'รอยเท้าของฉัน' });
-      else ACTIONS['save-card']();
-    } catch { /* user cancelled */ }
-  }, 'image/png');
+ACTIONS['send-card'] = async () => {
+  if (!canShareFile(shareFile)) return ACTIONS['save-card']();
+  try { await navigator.share({ files: [shareFile], title: 'รอยเท้าของฉัน' }); } catch { /* cancelled */ }
 };
 
 /* ---------- welcome + demo ---------- */
