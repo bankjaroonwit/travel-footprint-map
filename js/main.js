@@ -47,7 +47,29 @@ document.addEventListener('touchmove', e => {
   await backfillLocations();
   renderAll();
 
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker not registered', err));
-  }
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) registerSW();
 })();
+
+/* Updates: check for a new version on open and whenever the app comes back to the foreground,
+   then reload into it (or ask first if the user is in the middle of something). */
+function registerSW() {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    const check = () => reg.update().catch(() => {});
+    check();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(err => console.warn('Service worker not registered', err));
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    if (sheetOpen()) {
+      toast('มีเวอร์ชันใหม่ ปิดหน้าต่างนี้แล้วแอพจะอัปเดตเอง', 4000);
+      const wait = setInterval(() => { if (!sheetOpen()) { clearInterval(wait); reloading = true; location.reload(); } }, 1000);
+      return;
+    }
+    reloading = true;
+    location.reload();
+  });
+}

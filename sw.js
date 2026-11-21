@@ -1,6 +1,6 @@
 /* Offline support: app files network-first, libraries and boundaries stale-while-revalidate,
    map tiles cache-first with a size cap. Place search always goes to the network. */
-const VERSION = 'footprint-v8';
+const VERSION = 'footprint-v9';
 const TILE_CACHE = 'footprint-tiles';
 const TILE_LIMIT = 600;
 const SHELL = [
@@ -9,7 +9,7 @@ const SHELL = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -46,7 +46,8 @@ self.addEventListener('fetch', e => {
 
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(req)
+      // no-cache: always check with the server (cheap 304 when unchanged) so updates show up right away.
+      fetch(req, { cache: 'no-cache' })
         .then(res => { if (res.ok) caches.open(VERSION).then(c => c.put(req, res.clone())); return res; })
         .catch(() => caches.match(req).then(r => r || caches.match('index.html')))
     );
