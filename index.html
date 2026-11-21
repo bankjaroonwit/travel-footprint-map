@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>รอยเท้า</title>
+  <meta name="description" content="บันทึกที่เที่ยว ระบายสีจังหวัดและประเทศที่เคยไป จัดทริป สะสมแสตมป์">
+  <meta name="theme-color" content="#0f6e56">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <main>
+      <section id="view-map" class="view active" aria-label="แผนที่">
+        <div id="map"></div>
+        <div class="map-top">
+          <div class="progress-card">
+            <div class="pc-row">
+              <div>
+                <span class="muted small">ไปแล้ว</span>
+                <div class="progress-num"><b id="pc-count">0</b> <span class="muted" id="pc-total">/ 77 จังหวัด</span></div>
+              </div>
+              <div class="seg" id="mode-seg">
+                <button data-action="mode" data-mode="th" class="on">ไทย</button>
+                <button data-action="mode" data-mode="world">โลก</button>
+              </div>
+            </div>
+            <div class="bar"><div id="pc-bar" style="width:0%"></div></div>
+            <div class="muted small" id="pc-sub">0 ที่</div>
+          </div>
+          <div class="pick-banner" id="pick-banner" hidden>
+            <i class="ti ti-pointer" aria-hidden="true"></i><span id="pick-text"></span>
+            <button data-action="cancel-pick">ยกเลิก</button>
+          </div>
+          <div class="route-chip" id="route-chip" hidden>
+            <i class="ti ti-route" aria-hidden="true"></i><span id="route-text"></span>
+            <button data-action="clear-route" aria-label="ปิดเส้นทาง"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
+        <div class="map-tools">
+          <button class="round-btn" data-action="search" aria-label="ค้นหาสถานที่"><i class="ti ti-search" aria-hidden="true"></i></button>
+          <button class="round-btn" data-action="filter" aria-label="ตัวกรอง"><i class="ti ti-filter" aria-hidden="true"></i><span class="dot" id="filter-dot" hidden></span></button>
+          <button class="round-btn" data-action="fit-all" aria-label="ดูหมุดทั้งหมด"><i class="ti ti-arrows-maximize" aria-hidden="true"></i></button>
+        </div>
+        <div class="fabs">
+          <button class="fab small" data-action="import-photos" aria-label="ปักหมุดจากรูป"><i class="ti ti-photo-plus" aria-hidden="true"></i></button>
+          <button class="fab" data-action="locate" aria-label="ปักหมุดที่ตำแหน่งปัจจุบัน"><i class="ti ti-current-location" aria-hidden="true"></i></button>
+        </div>
+        <input type="file" id="photo-import" accept="image/*" multiple hidden>
+        <div id="hint" class="hint">แตะบนแผนที่เพื่อปักหมุด</div>
+      </section>
+
+      <section id="view-journal" class="view" aria-label="ไดอารี่">
+        <header class="page-head">
+          <h1>ไดอารี่</h1>
+          <div class="tools">
+            <button class="icon-btn" data-action="new-journal" aria-label="เขียนไดอารี่"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+          </div>
+        </header>
+        <div class="page-body" id="journal"></div>
+      </section>
+
+      <section id="view-timeline" class="view" aria-label="สถานที่และทริป">
+        <header class="page-head"><h1>สถานที่และทริป</h1></header>
+        <div class="page-body">
+          <div id="tl-seg" style="margin-bottom:12px"></div>
+          <div id="timeline"></div>
+        </div>
+      </section>
+
+      <section id="view-passport" class="view" aria-label="พาสปอร์ต">
+        <header class="page-head">
+          <h1>พาสปอร์ตของฉัน</h1>
+          <div class="tools">
+            <button class="icon-btn" data-action="share-card" aria-label="สร้างรูปสรุป"><i class="ti ti-share" aria-hidden="true"></i></button>
+            <button class="icon-btn" data-action="settings" aria-label="ตั้งค่า"><i class="ti ti-settings" aria-hidden="true"></i></button>
+          </div>
+        </header>
+        <div class="page-body" id="passport"></div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab active" data-action="view" data-view="map"><i class="ti ti-map-2" aria-hidden="true"></i><span>แผนที่</span></button>
+      <button class="tab" data-action="view" data-view="timeline"><i class="ti ti-list-details" aria-hidden="true"></i><span>สถานที่</span></button>
+      <button class="tab" data-action="view" data-view="journal"><i class="ti ti-notebook" aria-hidden="true"></i><span>ไดอารี่</span></button>
+      <button class="tab" data-action="view" data-view="passport"><i class="ti ti-award" aria-hidden="true"></i><span>พาสปอร์ต</span></button>
+    </nav>
+  </div>
+
+  <div id="sheet-backdrop" data-action="close-sheet"></div>
+  <div id="sheet" class="sheet" role="dialog" aria-modal="true">
+    <div class="grip"></div>
+    <div id="sheet-body"></div>
+  </div>
+
+  <div id="viewer" hidden>
+    <img id="viewer-img" alt="">
+    <button class="v-btn" id="viewer-close" data-action="viewer-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    <button class="v-btn" id="viewer-prev" data-action="viewer-prev" aria-label="รูปก่อนหน้า"><i class="ti ti-chevron-left"></i></button>
+    <button class="v-btn" id="viewer-next" data-action="viewer-next" aria-label="รูปถัดไป"><i class="ti ti-chevron-right"></i></button>
+    <div id="viewer-count"></div>
+  </div>
+
+  <div id="toast" role="status"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/forms.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/journal.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

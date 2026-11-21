@@ -1,0 +1,11 @@
+{
+  "name": "รอยเท้า — บันทึกที่เที่ยว",
+  "short_name": "รอยเท้า",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f0",
+  "theme_color": "#0f6e56",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
