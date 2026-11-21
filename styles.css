@@ -383,3 +383,6 @@ button.tag { color: var(--accent); }
 .pd-actions { margin-top: 6px; }
 .sheet:has(.pd) > .grip { position: absolute; left: 50%; transform: translateX(-50%); top: 2px; z-index: 2; background: rgba(255, 255, 255, .7); }
 @media (min-width: 900px) { .pd-top { margin-top: -12px; } }
+.leaflet-container a.leaflet-popup-close-button { width: 28px; height: 28px; top: 6px; right: 6px; font-size: 20px; line-height: 26px; color: var(--muted); border-radius: 50%; }
+.leaflet-container a.leaflet-popup-close-button:hover { background: var(--surface-2); color: var(--text); }
+.leaflet-popup-content .pop-title { padding-right: 22px; }

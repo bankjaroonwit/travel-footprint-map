@@ -19,7 +19,11 @@ function initMap() {
     iconCreateFunction: c => L.divIcon({ className: 'cluster-wrap', html: `<div class="cluster">${c.getChildCount()}</div>`, iconSize: [40, 40] }),
   }).addTo(map);
   routeLayer = L.layerGroup().addTo(map);
+  // A tap while the "pin here?" popup is open only closes it; the next tap offers a new spot.
+  let popupWasOpen = false;
+  map.on('preclick', () => { popupWasOpen = !!(offerPopup && map.hasLayer(offerPopup)); });
   map.on('click', e => {
+    if (popupWasOpen && !S.pick) { popupWasOpen = false; map.closePopup(); return; }
     if (S.pick) {
       const cb = S.pick.cb;
       endPick();
@@ -116,6 +120,7 @@ function renderProgress() {
 }
 
 /* ---------- add pin ---------- */
+let offerPopup = null;
 function offerPin(latlng, name = '') {
   const loc = locate(latlng.lat, latlng.lng);
   let where, sub;
@@ -132,7 +137,7 @@ function offerPin(latlng, name = '') {
     sub = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
   }
   const data = `data-lat="${latlng.lat}" data-lng="${latlng.lng}" data-name="${esc(name)}"`;
-  L.popup({ closeButton: false, autoPanPaddingTopLeft: L.point(16, TOP_PAD), autoPanPaddingBottomRight: L.point(70, 40) })
+  offerPopup = L.popup({ closeButton: true, autoPanPaddingTopLeft: L.point(16, TOP_PAD), autoPanPaddingBottomRight: L.point(70, 40) })
     .setLatLng(latlng)
     .setContent(`
       ${name ? `<div class="pop-title">${esc(name)}</div><div class="muted small">${esc(where)}</div>` : `<div class="pop-title">${esc(where)}</div>`}
@@ -163,6 +168,12 @@ ACTIONS.locate = () => {
   );
 };
 
+const TH_BOUNDS = [[5.6, 97.3], [20.5, 105.7]];
+ACTIONS['home-th'] = () => {
+  map.closePopup();
+  if (S.mode !== 'th') ACTIONS.mode({ dataset: { mode: 'th' } });
+  map.flyToBounds(TH_BOUNDS, { paddingTopLeft: [16, TOP_PAD - 20], paddingBottomRight: [60, 20], duration: 0.8 });
+};
 ACTIONS['fit-all'] = () => {
   const list = filtered();
   if (!list.length) return toast('ยังไม่มีหมุดให้แสดง');
