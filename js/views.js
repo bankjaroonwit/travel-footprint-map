@@ -378,7 +378,7 @@ function renderPassport() {
   const s = S.stats;
   const badges = computeBadges();
   const earned = badges.filter(b => b.done).length;
-  let html = `
+  let html = recapTeaser() + `
     <div class="stats">
       <div class="stat"><div class="l">จังหวัด</div><div class="v">${s.provinces.size}<small>/77</small></div></div>
       <div class="stat"><div class="l">ภาค</div><div class="v">${s.regions.size}<small>/6</small></div></div>

@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, storage and the click dispatcher. Loaded first. */
 
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 
 const CATS = {
   beach:    { label: 'ทะเล',             icon: 'ti-beach',               color: '#378ADD' },

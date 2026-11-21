@@ -15,9 +15,18 @@ function initMap() {
   }).addTo(map);
   clusterLayer = L.markerClusterGroup({
     showCoverageOnHover: false,
-    maxClusterRadius: 42,
-    iconCreateFunction: c => L.divIcon({ className: 'cluster-wrap', html: `<div class="cluster">${c.getChildCount()}</div>`, iconSize: [40, 40] }),
+    maxClusterRadius: z => z < 8 ? 26 : 36,
+    disableClusteringAtZoom: 13,
+    spiderfyOnMaxZoom: true,
+    iconCreateFunction: c => {
+      const n = c.getChildCount();
+      return L.divIcon({ className: 'cluster-wrap', html: `<div class="cluster">${n}</div>`, iconSize: n > 9 ? [26, 26] : [22, 22] });
+    },
   }).addTo(map);
+  // Zoomed out, pins shrink to small dots so they don't cover the coloured provinces.
+  const farClass = () => map.getContainer().classList.toggle('far', map.getZoom() < 8);
+  map.on('zoomend', farClass);
+  farClass();
   routeLayer = L.layerGroup().addTo(map);
   // A tap while the "pin here?" popup is open only closes it; the next tap offers a new spot.
   let popupWasOpen = false;
@@ -74,7 +83,7 @@ function pinIcon(p) {
   const c = cat(p.category), wish = p.status === 'wish';
   return L.divIcon({
     className: 'pin-wrap',
-    html: `<div class="pin${wish ? ' wish' : ''}" style="--c:${c.color}"><i class="ti ${wish ? 'ti-heart' : c.icon}"></i></div>`,
+    html: `<div class="pin${wish ? ' wish' : ''}" style="--c:${c.color}"><i class="ti ${wish ? 'ti-heart' : c.icon}"></i></div><span class="pin-dot${wish ? ' wish' : ''}" style="--c:${c.color}"></span>`,
     iconSize: [32, 32],
     iconAnchor: [16, 38],
   });
