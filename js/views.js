@@ -116,34 +116,96 @@ function tripCard(t) {
 }
 
 /* ---------- pin detail ---------- */
+const flag = iso => !/Windows/.test(navigator.userAgent) && iso && /^[A-Z]{2}$/.test(iso) ? String.fromCodePoint(...[...iso].map(c => 0x1F1A5 + c.charCodeAt(0))) : '';
+function agoText(iso) {
+  if (!isDate(iso)) return '';
+  const days = Math.round((toD(today()) - toD(iso)) / 864e5);
+  if (days < 0) return 'อีก ' + (-days) + ' วัน';
+  if (days === 0) return 'วันนี้';
+  if (days < 30) return days + ' วันที่แล้ว';
+  if (days < 365) return Math.floor(days / 30) + ' เดือนที่แล้ว';
+  return Math.floor(days / 365) + ' ปีที่แล้ว';
+}
+let detailMap = null;
 function openPinDetail(id) {
   const p = pinById(id);
   if (!p) return;
   const c = cat(p.category), wish = p.status === 'wish';
   const t = p.tripId && tripById(p.tripId);
   const nav = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+  const country = countryName(p.country);
+  const where = [p.province ? 'จ.' + p.province : '', country].filter(Boolean).join(' · ');
+  const nearby = !wish && p.province ? visited().filter(x => x.id !== p.id && x.province === p.province).length : 0;
+  const entries = S.journal.filter(j => j.pinIds.includes(p.id));
+  const photos = p.photos;
+
+  const hero = photos.length
+    ? `<button class="pd-hero" data-action="view-photo" data-id="${p.id}" data-i="0" style="background-image:url('${photos[0]}')" aria-label="ดูรูป"></button>`
+    : `<div class="pd-hero empty" style="--c:${c.color}"><i class="ti ${wish ? 'ti-heart' : c.icon}"></i></div>`;
+
   openSheet(`
-    ${sheetHead(esc(p.name))}
-    ${p.photos.length
-      ? `<div class="gallery">${p.photos.map((s, i) => `<img src="${s}" alt="" data-action="view-photo" data-id="${p.id}" data-i="${i}">`).join('')}</div>`
-      : `<div class="hero-empty" style="background:${c.color}"><i class="ti ${wish ? 'ti-heart' : c.icon}"></i></div>`}
-    ${!wish && p.rating ? `<div class="rating">${stars(p.rating)}</div>` : ''}
-    <div class="meta">
-      ${wish ? '<span class="tag"><i class="ti ti-heart"></i>อยากไป</span>' : `<span class="tag"><i class="ti ti-calendar"></i>${fmtDate(p.date)}</span>`}
-      ${placeLabel(p) ? `<span class="tag"><i class="ti ti-map-pin"></i>${esc(p.province ? 'จ.' + p.province : placeLabel(p))}</span>` : ''}
-      <span class="tag"><i class="ti ${c.icon}"></i>${c.label}</span>
-      ${t ? `<button class="tag" data-action="open-trip" data-id="${t.id}"><i class="ti ti-route"></i>${esc(t.name)}</button>` : ''}
-    </div>
-    ${p.note ? `<div class="note">${esc(p.note)}</div>` : '<div class="note muted">ยังไม่มีบันทึก</div>'}
-    ${wish ? `<button class="btn primary block" data-action="mark-visited" data-id="${p.id}"><i class="ti ti-check"></i> ไปมาแล้ว</button>` : journalLinks(
-      S.journal.filter(j => j.pinIds.includes(p.id)), `data-pin="${p.id}"`)}
-    <div class="row">
-      <button class="btn danger" data-action="delete-pin" data-id="${p.id}"><i class="ti ti-trash"></i> ลบ</button>
-      ${wish
-        ? `<a class="btn" href="${nav}" target="_blank" rel="noopener"><i class="ti ti-navigation"></i> นำทาง</a>`
-        : `<button class="btn" data-action="show-pin" data-id="${p.id}"><i class="ti ti-map-2"></i> แผนที่</button>`}
-      <button class="btn" data-action="edit-pin" data-id="${p.id}"><i class="ti ti-edit"></i> แก้ไข</button>
+    <div class="pd">
+      <div class="pd-top">
+        ${hero}
+        <div class="pd-shade"></div>
+        <button class="pd-close" data-action="close-sheet" aria-label="ปิด"><i class="ti ti-x"></i></button>
+        ${photos.length > 1 ? `<span class="pd-count"><i class="ti ti-photo"></i> ${photos.length}</span>` : ''}
+        <div class="pd-title">
+          <span class="pd-cat" style="--c:${c.color}"><i class="ti ${c.icon}"></i>${c.label}</span>
+          <h1>${esc(p.name)}</h1>
+          ${where ? `<div class="pd-where">${flag(p.country)} ${esc(where)}</div>` : ''}
+        </div>
+      </div>
+      ${photos.length > 1 ? `<div class="pd-thumbs">${photos.map((src, i) =>
+        `<img src="${src}" alt="" data-action="view-photo" data-id="${p.id}" data-i="${i}">`).join('')}</div>` : ''}
+
+      <div class="pd-facts">
+        ${wish
+          ? `<div class="fact"><i class="ti ti-heart"></i><div><b>อยากไป</b><span>รายการที่อยากไป</span></div></div>`
+          : `<div class="fact"><i class="ti ti-calendar"></i><div><b>${fmtDate(p.date) || 'ไม่ระบุวัน'}</b><span>${agoText(p.date)}</span></div></div>`}
+        ${!wish ? `<div class="fact"><i class="ti ti-star"></i><div><b class="pd-stars">${p.rating ? stars(p.rating) : '–'}</b><span>${p.rating ? `ให้ ${p.rating} จาก 5` : 'ยังไม่ให้คะแนน'}</span></div></div>` : ''}
+        ${t ? `<button class="fact link-fact" data-action="open-trip" data-id="${t.id}"><i class="ti ti-route"></i><div><b>${esc(t.name)}</b><span>ทริป</span></div><i class="ti ti-chevron-right go"></i></button>` : ''}
+        ${nearby ? `<div class="fact"><i class="ti ti-map-pins"></i><div><b>อีก ${nearby} ที่</b><span>ในจังหวัดเดียวกัน</span></div></div>` : ''}
+      </div>
+
+      ${wish ? `<button class="btn primary block" data-action="mark-visited" data-id="${p.id}"><i class="ti ti-check"></i> ไปมาแล้ว</button>` : ''}
+
+      <div class="pd-sec">
+        <h3><i class="ti ti-quote"></i> บันทึก</h3>
+        ${p.note ? `<div class="pd-note">${esc(p.note)}</div>`
+          : `<button class="pd-note empty" data-action="edit-pin" data-id="${p.id}">ยังไม่มีบันทึก แตะเพื่อเขียน</button>`}
+      </div>
+
+      <div class="pd-sec">
+        <h3><i class="ti ti-map-2"></i> ตำแหน่ง</h3>
+        <div class="pd-map" id="pd-map"></div>
+        <div class="pd-mapbar">
+          <span class="muted small">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</span>
+          <span class="pd-maplinks">
+            ${!wish ? `<button class="link" data-action="show-pin" data-id="${p.id}">ดูในแผนที่</button>` : ''}
+            <a class="link" href="${nav}" target="_blank" rel="noopener"><i class="ti ti-navigation"></i> นำทาง</a>
+          </span>
+        </div>
+      </div>
+
+      ${!wish ? `<div class="pd-sec"><h3><i class="ti ti-notebook"></i> ไดอารี่${entries.length ? ` <span class="muted small">${entries.length}</span>` : ''}</h3>
+        ${journalLinks(entries, `data-pin="${p.id}"`)}</div>` : ''}
+
+      <div class="row pd-actions">
+        <button class="btn" data-action="edit-pin" data-id="${p.id}"><i class="ti ti-edit"></i> แก้ไข</button>
+        <button class="btn danger" data-action="delete-pin" data-id="${p.id}"><i class="ti ti-trash"></i> ลบ</button>
+      </div>
     </div>`);
+
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+  setTimeout(() => {
+    const el = $('#pd-map');
+    if (!el) return;
+    detailMap = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false,
+      doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView([p.lat, p.lng], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(detailMap);
+    L.marker([p.lat, p.lng], { icon: pinIcon(p), interactive: false }).addTo(detailMap);
+  }, 60);
 }
 ACTIONS['open-pin'] = el => openPinDetail(el.dataset.id);
 ACTIONS['edit-pin'] = el => openPinForm(pinById(el.dataset.id));

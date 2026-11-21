@@ -341,3 +341,45 @@ button.tag { color: var(--accent); }
   .sheet.open { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
   .sheet .grip { display: none; }
 }
+
+/* place detail */
+.pd { margin-top: -6px; }
+.pd-top { position: relative; margin: 0 -16px; height: 260px; overflow: hidden; border-radius: 20px 20px 0 0; }
+.pd-hero { position: absolute; inset: 0; width: 100%; border: 0; padding: 0; background: center / cover no-repeat var(--surface-2); cursor: zoom-in; }
+.pd-hero.empty {
+  cursor: default; display: flex; align-items: center; justify-content: center; padding-bottom: 60px;
+  background: radial-gradient(circle at 80% 10%, rgba(255, 255, 255, .22), transparent 45%), linear-gradient(150deg, var(--c), color-mix(in srgb, var(--c) 55%, #000));
+  color: rgba(255, 255, 255, .9); font-size: 72px;
+}
+.pd-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(0, 0, 0, .25) 0, transparent 30%, transparent 45%, rgba(0, 0, 0, .72) 100%); }
+.pd-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, .38); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+.pd-count { position: absolute; top: 14px; left: 14px; background: rgba(0, 0, 0, .45); color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 99px; display: inline-flex; gap: 4px; align-items: center; }
+.pd-title { position: absolute; left: 16px; right: 16px; bottom: 14px; color: #fff; pointer-events: none; }
+.pd-title h1 { font-size: 24px; line-height: 1.25; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+.pd-where { font-size: 14px; opacity: .92; margin-top: 2px; }
+.pd-cat { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 3px 10px 3px 8px; border-radius: 99px; background: var(--c); color: #fff; margin-bottom: 6px; }
+.pd-thumbs { display: flex; gap: 6px; overflow-x: auto; margin: 10px -16px 0; padding: 0 16px; }
+.pd-thumbs img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; flex: none; cursor: zoom-in; }
+.pd-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+.fact { display: flex; gap: 10px; align-items: center; background: var(--surface-2); border: 0; border-radius: 14px; padding: 10px 12px; text-align: left; min-width: 0; }
+.fact > i { font-size: 20px; color: var(--accent-2); flex: none; }
+.fact > div { min-width: 0; display: flex; flex-direction: column; }
+.fact b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fact span { font-size: 12px; color: var(--muted); }
+.fact .pd-stars { color: var(--star); letter-spacing: 1px; }
+.link-fact { cursor: pointer; }
+.fact:only-child, .fact:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.link-fact .go { margin-left: auto; color: var(--muted); font-size: 16px; }
+.pd-sec { margin: 18px 0; }
+.pd-sec h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.pd-sec h3 > i { color: var(--accent-2); font-size: 17px; }
+.pd-note { white-space: pre-wrap; background: var(--surface-2); border-radius: 14px; padding: 12px 14px; border-left: 3px solid var(--accent-2); }
+.pd-note.empty { width: 100%; text-align: left; border: 1px dashed var(--border); border-left: 3px solid var(--border); background: none; color: var(--muted); }
+.pd-map { height: 150px; border-radius: 14px; overflow: hidden; background: var(--surface-2); z-index: 0; }
+.pd-map .leaflet-tile-pane { filter: var(--tile-filter); }
+.pd-mapbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
+.pd-maplinks { display: flex; gap: 14px; }
+.pd-maplinks .link { display: inline-flex; gap: 3px; align-items: center; text-decoration: none; font-size: 14px; }
+.pd-actions { margin-top: 6px; }
+.sheet:has(.pd) > .grip { position: absolute; left: 50%; transform: translateX(-50%); top: 2px; z-index: 2; background: rgba(255, 255, 255, .7); }
+@media (min-width: 900px) { .pd-top { margin-top: -12px; } }
