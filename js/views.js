@@ -7,6 +7,7 @@ function renderAll() {
   renderTimeline();
   renderJournal();
   renderPassport();
+  ensureThumbs();
 }
 
 function switchView(name) {
@@ -22,7 +23,7 @@ const placeLabel = p => p.province || countryName(p.country) || '';
 /* ---------- timeline ---------- */
 function thumbHtml(p) {
   const c = cat(p.category);
-  if (p.photos[0]) return `<img src="${p.photos[0]}" alt="" loading="lazy">`;
+  if (p.photos[0]) return `<img src="${thumb(p.photos[0])}" alt="" loading="lazy" decoding="async">`;
   if (p.status === 'wish') return `<div class="ico wish" style="--c:${c.color}"><i class="ti ${c.icon}"></i></div>`;
   return `<div class="ico" style="background:${c.color}"><i class="ti ${c.icon}"></i></div>`;
 }
@@ -157,7 +158,7 @@ function openPinDetail(id) {
         </div>
       </div>
       ${photos.length > 1 ? `<div class="pd-thumbs">${photos.map((src, i) =>
-        `<img src="${src}" alt="" data-action="view-photo" data-id="${p.id}" data-i="${i}">`).join('')}</div>` : ''}
+        `<img src="${thumb(src)}" alt="" decoding="async" data-action="view-photo" data-id="${p.id}" data-i="${i}">`).join('')}</div>` : ''}
 
       <div class="pd-facts">
         ${wish

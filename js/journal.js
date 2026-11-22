@@ -117,7 +117,7 @@ function journalCard(j) {
         <div class="ex">${esc(excerpt(j.body)) || '<span class="muted">มีแต่รูป</span>'}</div>
         ${where ? `<div class="where"><i class="ti ti-map-pin"></i> ${esc(where)}</div>` : ''}
       </div>
-      ${photo ? `<img src="${photo}" alt="" loading="lazy">` : ''}
+      ${photo ? `<img src="${thumb(photo)}" alt="" loading="lazy" decoding="async">` : ''}
     </button>`;
 }
 ACTIONS['open-journal'] = el => openJournalEntry(el.dataset.id);

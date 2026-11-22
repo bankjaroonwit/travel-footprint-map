@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, storage and the click dispatcher. Loaded first. */
 
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 
 const CATS = {
   beach:     { label: 'ทะเล',             icon: 'ti-beach',               color: '#378ADD' },
@@ -44,6 +44,47 @@ const ACTIONS = {};
 /* ---------- helpers ---------- */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+/* Small copies of photos for lists and thumbnails. Stored photos are up to 1280px, and decoding
+   dozens of those just to show 60px squares makes scrolling stutter. The copies live in memory only. */
+const THUMBS = new Map();
+const thumb = src => THUMBS.get(src) || src;
+let thumbQueue = Promise.resolve();
+function makeThumb(src) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 200 / Math.min(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(b => res(b ? URL.createObjectURL(b) : null), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+function ensureThumbs() {
+  const want = new Set();
+  for (const p of S.pins) p.photos.forEach(s => want.add(s));
+  for (const j of S.journal) if (j.photos[0]) want.add(j.photos[0]);
+  for (const [src, url] of THUMBS) if (!want.has(src)) { URL.revokeObjectURL(url); THUMBS.delete(src); }
+  const todo = [...want].filter(s => !THUMBS.has(s));
+  if (!todo.length) return;
+  thumbQueue = thumbQueue.then(async () => {
+    for (const s of todo) {
+      if (THUMBS.has(s)) continue;
+      const url = await makeThumb(s);
+      if (url) THUMBS.set(s, url);
+      await new Promise(r => setTimeout(r, 0));  // let the page breathe between photos
+    }
+    // put the small copies into images that are already on screen
+    for (const img of $$('.item img, .j-card img, .pd-thumbs img')) {
+      const url = THUMBS.get(img.getAttribute('src'));
+      if (url) img.src = url;
+    }
+  });
+}
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const isDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);

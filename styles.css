@@ -421,6 +421,8 @@ button.tag { color: var(--accent); }
 html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }
 button, a, label, .tab, .round-btn, .fab, .chip, .seg button { touch-action: manipulation; }
 #map, .pd-map { touch-action: none; }
+/* sheet tops are the swipe-to-close handle (see main.js) */
+@media (max-width: 899px) { .sheet .grip, .sheet .sheet-head, .sheet .pd-top { touch-action: none; } }
 /* iOS zooms into fields with text smaller than 16px; keep them at 16px on phones */
 @media (max-width: 899px) { input, select, textarea { font-size: 16px !important; } }
 
