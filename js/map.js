@@ -4,7 +4,7 @@
 let map, provLayer, countryLayer, clusterLayer, routeLayer;
 const TH_VIEW = { center: [13.2, 100.9], zoom: 5.6 };
 const WORLD_VIEW = { center: [25, 100], zoom: 2 };
-const TOP_PAD = 170;
+const TOP_PAD = 170 + (document.getElementById('statusbar')?.offsetHeight || 0);  // room for the cards at the top
 
 function initMap() {
   const v = S.mode === 'th' ? TH_VIEW : WORLD_VIEW;

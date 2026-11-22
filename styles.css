@@ -20,7 +20,7 @@
     --bg: #161614; --surface: #22221f; --surface-2: #2c2c29; --text: #efede6; --muted: #a3a29b;
     --border: rgba(255, 255, 255, .12); --accent: #5dcaa5; --accent-soft: #08392e; --danger: #f09595;
     --star: #ef9f27; --shadow: 0 6px 24px rgba(0, 0, 0, .5);
-    --tile-filter: brightness(.72) contrast(1.08) saturate(.75);
+    --tile-filter: brightness(.72) contrast(1.08) saturate(.75); --sb: #161614;
     color-scheme: dark;
   }
 }
@@ -28,13 +28,19 @@
   --bg: #161614; --surface: #22221f; --surface-2: #2c2c29; --text: #efede6; --muted: #a3a29b;
   --border: rgba(255, 255, 255, .12); --accent: #5dcaa5; --accent-soft: #08392e; --danger: #f09595;
   --star: #ef9f27; --shadow: 0 6px 24px rgba(0, 0, 0, .5);
-  --tile-filter: brightness(.72) contrast(1.08) saturate(.75);
+  --tile-filter: brightness(.72) contrast(1.08) saturate(.75); --sb: #161614;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
+html { background: var(--bg); }
+/* Edge to edge: on an iPhone home-screen app the page runs under the status bar (see the meta tag),
+   so the top of each screen leaves room for it. --sat is that room (0 everywhere else). */
+:root { --sat: env(safe-area-inset-top, 0px); --sb: #0f6e56; }
+#statusbar { position: fixed; top: 0; left: 0; right: 0; height: var(--sat); z-index: 1005; pointer-events: none; background: var(--sb); }
+body[data-view="map"] #statusbar { background: linear-gradient(rgba(0, 0, 0, .45), rgba(0, 0, 0, 0)); }
 body {
   background: var(--bg); color: var(--text);
   font-family: "Noto Sans Thai", system-ui, sans-serif; font-size: 15px; line-height: 1.55;
@@ -50,8 +56,8 @@ h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
 .link { border: 0; background: none; color: var(--accent); padding: 0; font-weight: 500; }
 
 #app {
-  height: 100dvh; width: 100%;
-  display: flex; flex-direction: column; background: var(--bg); position: relative;
+  position: fixed; inset: 0;  /* the real screen, even where 100vh/100dvh are wrong (iPhone home-screen apps) */
+  display: flex; flex-direction: column; background: var(--bg);
 }
 main { flex: 1; position: relative; overflow: hidden; }
 .view { position: absolute; inset: 0; display: none; overflow-y: auto; }
@@ -59,7 +65,7 @@ main { flex: 1; position: relative; overflow: hidden; }
 #view-map { overflow: hidden; }
 #map { position: absolute; inset: 0; background: var(--surface-2); }
 .leaflet-tile-pane { filter: var(--tile-filter); }
-.page-head { padding: 20px 16px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.page-head { padding: calc(20px + var(--sat)) 16px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .page-head .tools { display: flex; gap: 8px; }
 .page-body { padding: 8px 16px 40px; }
 
@@ -78,7 +84,7 @@ main { flex: 1; position: relative; overflow: hidden; }
 .seg .cnt { font-size: 11px; color: var(--muted); }
 
 /* map overlays */
-.map-top { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 500; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.map-top { position: absolute; top: calc(12px + var(--sat)); left: 12px; right: 12px; z-index: 500; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .map-top > * { pointer-events: auto; }
 .progress-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 14px 10px; }
 .pc-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
@@ -120,7 +126,7 @@ main { flex: 1; position: relative; overflow: hidden; }
 .pick-item.on .pick-mark { color: var(--accent-2); }
 .plan-pick-bar { position: sticky; bottom: 0; background: var(--surface); padding: 10px 0 4px; }
 @media (max-width: 599px) { .route-chip { align-self: flex-start; max-width: calc(100% - 58px); } }
-.map-tools { position: absolute; right: 12px; top: 150px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+.map-tools { position: absolute; right: 12px; top: calc(150px + var(--sat)); z-index: 500; display: flex; flex-direction: column; gap: 8px; }
 .round-btn {
   position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0;
   background: var(--surface); box-shadow: var(--shadow); font-size: 19px;
@@ -392,10 +398,10 @@ button.tag { color: var(--accent); }
   main { order: 2; }
   .tabbar {
     order: 1; flex-direction: column; justify-content: flex-start; gap: 4px; width: 84px; flex: none;
-    border-top: 0; border-right: 1px solid var(--border); padding: 16px 0;
+    border-top: 0; border-right: 1px solid var(--border); padding: calc(16px + var(--sat)) 0 16px;
   }
   .tab { flex: none; padding: 10px 0; }
-  .page-head { padding-top: 32px; }
+  .page-head { padding-top: calc(32px + var(--sat)); }
   .badges { grid-template-columns: repeat(6, 1fr); }
   .sheet {
     top: 50%; bottom: auto; max-height: 86dvh; border-radius: 20px; padding-top: 18px; padding-bottom: 20px;
