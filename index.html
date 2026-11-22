@@ -21,8 +21,55 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    /* launch screen: inline so it shows on the very first paint */
+    #splash { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 78% 12%, rgba(255,255,255,.12), transparent 42%), linear-gradient(150deg, #22b386, #0a5240);
+      color: #fff; font-family: "Noto Sans Thai", system-ui, sans-serif; transition: opacity .45s ease, visibility 0s linear .45s; }
+    #splash.out { opacity: 0; visibility: hidden; pointer-events: none; }
+    #splash.out .sp-logo { transform: scale(1.12); transition: transform .45s ease; }
+    .sp-logo { overflow: visible; margin-bottom: 6px; }
+    .sp-trail-draw { stroke-dasharray: 260; stroke-dashoffset: 260; animation: sp-draw .7s ease-out .1s forwards; }
+    .sp-start { transform-origin: 86px 446px; transform: scale(0); animation: sp-pop .35s cubic-bezier(.3,1.6,.5,1) forwards; }
+    .sp-pin { transform: translateY(-120px); opacity: 0; filter: drop-shadow(0 10px 12px rgba(3,43,33,.35));
+      animation: sp-drop .6s cubic-bezier(.3,1.35,.55,1) .45s forwards; }
+    .sp-shadow { transform-origin: 256px 420px; transform: scale(.2); opacity: 0; animation: sp-shadow .6s ease-out .45s forwards; }
+    .sp-foot { transform-origin: 256px 230px; transform: scale(1.5); opacity: 0; animation: sp-stamp .3s cubic-bezier(.3,1.5,.5,1) 1s forwards; }
+    .sp-name { font-size: 30px; font-weight: 600; letter-spacing: .02em; opacity: 0; transform: translateY(10px); animation: sp-up .45s ease-out 1.05s forwards; }
+    .sp-tag { font-size: 14px; opacity: 0; transform: translateY(8px); animation: sp-up2 .45s ease-out 1.2s forwards; }
+    @keyframes sp-draw { to { stroke-dashoffset: 0; } }
+    @keyframes sp-pop { to { transform: scale(1); } }
+    @keyframes sp-drop { 0% { transform: translateY(-120px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }
+    @keyframes sp-shadow { to { transform: scale(1); opacity: .3; } }
+    @keyframes sp-stamp { to { transform: scale(1); opacity: 1; } }
+    @keyframes sp-up { to { opacity: 1; transform: none; } }
+    @keyframes sp-up2 { to { opacity: .8; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      #splash *, #splash { animation-duration: .01s !important; animation-delay: 0s !important; transition-duration: .2s !important; }
+    }
+  </style>
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+    <svg class="sp-logo" viewBox="60 60 392 412" width="168" height="176">
+      <defs>
+        <linearGradient id="sp-pin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e6f6ef"/></linearGradient>
+        <mask id="sp-trail-mask"><path class="sp-trail-draw" d="M86 446 C 150 430, 168 392, 214 404 S 250 430, 256 418" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round"/></mask>
+      </defs>
+      <path d="M86 446 C 150 430, 168 392, 214 404 S 250 430, 256 418" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 22" mask="url(#sp-trail-mask)"/>
+      <circle class="sp-start" cx="86" cy="446" r="11" fill="#ffd27a"/>
+      <ellipse class="sp-shadow" cx="256" cy="420" rx="34" ry="8" fill="#032b21" opacity=".3"/>
+      <g class="sp-pin">
+        <path d="M256 96c-68 0-122 53-122 119 0 90 122 199 122 199s122-109 122-199c0-66-54-119-122-119z" fill="url(#sp-pin)"/>
+        <g class="sp-foot"><g fill="#0f7a5c" transform="rotate(12 256 218)">
+          <path d="M256 196c-22 0-34 18-34 42 0 18 6 32 10 46 3 12 2 26 12 34 9 7 25 5 31-6 5-10 2-22 4-34 3-16 13-30 11-50-2-20-14-32-34-32z"/>
+          <circle cx="234" cy="174" r="12"/><circle cx="257" cy="164" r="9.5"/><circle cx="276" cy="167" r="8"/><circle cx="291" cy="177" r="7"/><circle cx="300" cy="192" r="6"/>
+        </g></g>
+      </g>
+    </svg>
+    <div class="sp-name">รอยเท้า</div>
+    <div class="sp-tag">ทุกที่ที่เคยไป</div>
+  </div>
   <div id="app">
     <main>
       <section id="view-map" class="view active" aria-label="แผนที่">

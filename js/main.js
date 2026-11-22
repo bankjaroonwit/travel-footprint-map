@@ -74,6 +74,18 @@ document.addEventListener('touchmove', e => {
   sheet.addEventListener('touchcancel', end);
 })();
 
+/* Launch animation: stays until the data is loaded, and at least long enough to finish playing. */
+function hideSplash() {
+  const sp = $('#splash');
+  if (!sp || sp.classList.contains('out')) return;
+  const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => {
+    sp.classList.add('out');
+    setTimeout(() => sp.remove(), 600);
+  }, Math.max(0, (quick ? 300 : 1650) - performance.now()));
+}
+setTimeout(hideSplash, 5000);  // never block the app if something goes wrong
+
 (async function boot() {
   applyTheme();
   S.mode = Prefs.get('mode', 'th') === 'world' ? 'world' : 'th';
@@ -89,6 +101,7 @@ document.addEventListener('touchmove', e => {
     toast('เปิดที่เก็บข้อมูลไม่ได้ ลองปิดโหมดไม่ระบุตัวตน', 4000);
   }
   renderAll();
+  hideSplash();
   if (!S.pins.length && !Prefs.get('welcomed', false)) showWelcome();
 
   await loadGeo();
