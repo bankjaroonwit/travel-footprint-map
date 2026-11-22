@@ -1,15 +1,26 @@
 'use strict';
 /* Shared state, helpers, storage and the click dispatcher. Loaded first. */
 
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 
 const CATS = {
-  beach:    { label: 'ทะเล',             icon: 'ti-beach',               color: '#378ADD' },
-  mountain: { label: 'ภูเขา',            icon: 'ti-mountain',            color: '#1D9E75' },
-  temple:   { label: 'วัด/ประวัติศาสตร์', icon: 'ti-building-castle',     color: '#D85A30' },
-  nature:   { label: 'ธรรมชาติ',         icon: 'ti-tent',                color: '#639922' },
-  city:     { label: 'เมือง',            icon: 'ti-building-skyscraper', color: '#7F77DD' },
-  food:     { label: 'กิน/คาเฟ่',         icon: 'ti-coffee',              color: '#BA7517' },
+  beach:     { label: 'ทะเล',             icon: 'ti-beach',               color: '#378ADD' },
+  island:    { label: 'เกาะ',             icon: 'ti-sailboat',            color: '#1B8FB5' },
+  mountain:  { label: 'ภูเขา',            icon: 'ti-mountain',            color: '#1D9E75' },
+  waterfall: { label: 'น้ำตก',            icon: 'ti-droplet',             color: '#2A9DC0' },
+  nature:    { label: 'ธรรมชาติ/อุทยาน',  icon: 'ti-trees',               color: '#639922' },
+  camping:   { label: 'แคมป์ปิ้ง',         icon: 'ti-tent',                color: '#4E7A27' },
+  viewpoint: { label: 'จุดชมวิว',          icon: 'ti-binoculars',          color: '#0E8C8C' },
+  temple:    { label: 'วัด/ประวัติศาสตร์', icon: 'ti-building-castle',     color: '#D85A30' },
+  museum:    { label: 'พิพิธภัณฑ์/ศิลปะ', icon: 'ti-palette',             color: '#A34A7A' },
+  city:      { label: 'เมือง',            icon: 'ti-building-skyscraper', color: '#7F77DD' },
+  food:      { label: 'ร้านอาหาร',        icon: 'ti-tools-kitchen-2',     color: '#BA7517' },
+  cafe:      { label: 'คาเฟ่',            icon: 'ti-coffee',              color: '#8B5E3C' },
+  market:    { label: 'ตลาด',             icon: 'ti-basket',              color: '#C2410C' },
+  shopping:  { label: 'ช้อปปิ้ง',          icon: 'ti-shopping-bag',        color: '#D4537E' },
+  nightlife: { label: 'บาร์/ไนท์ไลฟ์',    icon: 'ti-glass-cocktail',      color: '#6D3FB8' },
+  themepark: { label: 'สวนสนุก/สวนสัตว์', icon: 'ti-balloon',             color: '#D99A0B' },
+  stay:      { label: 'ที่พัก',            icon: 'ti-bed',                 color: '#5B6B8C' },
 };
 
 const S = {

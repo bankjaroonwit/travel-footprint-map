@@ -6,11 +6,23 @@
 const NEAR_CACHE = new Map();
 
 function guessCategory(t) {
-  if (t.natural === 'beach' || t.leisure === 'beach_resort' || t.natural === 'bay' || t.place === 'island' || t.natural === 'island') return 'beach';
-  if (t.natural === 'peak' || t.natural === 'volcano' || t.natural === 'ridge') return 'mountain';
-  if (t.amenity === 'place_of_worship' || t.historic || t.tourism === 'museum') return 'temple';
-  if (t.amenity === 'restaurant' || t.amenity === 'cafe' || t.amenity === 'marketplace' || t.amenity === 'food_court') return 'food';
-  if (t.natural || t.waterway === 'waterfall' || t.leisure === 'park' || t.leisure === 'garden' || t.leisure === 'nature_reserve' || t.boundary === 'national_park') return 'nature';
+  const am = t.amenity, to = t.tourism, le = t.leisure, na = t.natural, sh = t.shop;
+  if (t.place === 'island' || t.place === 'islet' || na === 'island') return 'island';
+  if (na === 'beach' || na === 'bay' || le === 'beach_resort') return 'beach';
+  if (t.waterway === 'waterfall') return 'waterfall';
+  if (na === 'peak' || na === 'volcano' || na === 'ridge') return 'mountain';
+  if (to === 'viewpoint') return 'viewpoint';
+  if (to === 'camp_site' || to === 'caravan_site') return 'camping';
+  if (am === 'place_of_worship' || t.historic) return 'temple';
+  if (to === 'museum' || to === 'gallery' || to === 'artwork' || am === 'arts_centre') return 'museum';
+  if (to === 'theme_park' || to === 'zoo' || to === 'aquarium' || le === 'water_park') return 'themepark';
+  if (am === 'cafe' || sh === 'coffee' || sh === 'bakery') return 'cafe';
+  if (am === 'restaurant' || am === 'food_court' || am === 'fast_food') return 'food';
+  if (am === 'marketplace') return 'market';
+  if (am === 'bar' || am === 'pub' || am === 'nightclub') return 'nightlife';
+  if (sh) return 'shopping';
+  if (['hotel', 'resort', 'guest_house', 'hostel', 'motel'].includes(to)) return 'stay';
+  if (na || le === 'park' || le === 'garden' || le === 'nature_reserve' || t.boundary === 'national_park') return 'nature';
   return '';
 }
 function kindLabel(t) {
@@ -18,12 +30,17 @@ function kindLabel(t) {
   if (t.amenity === 'cafe') return 'คาเฟ่';
   if (t.amenity === 'restaurant') return 'ร้านอาหาร';
   if (t.amenity === 'marketplace') return 'ตลาด';
+  if (t.amenity === 'bar' || t.amenity === 'pub' || t.amenity === 'nightclub') return 'บาร์';
+  if (t.shop === 'mall' || t.shop === 'department_store') return 'ห้าง';
+  if (t.tourism === 'theme_park' || t.tourism === 'zoo' || t.tourism === 'aquarium') return 'สวนสนุก/สวนสัตว์';
+  if (t.tourism === 'camp_site') return 'ลานกางเต็นท์';
   if (t.tourism === 'museum') return 'พิพิธภัณฑ์';
   if (t.tourism === 'viewpoint') return 'จุดชมวิว';
   if (t.tourism === 'hotel' || t.tourism === 'resort' || t.tourism === 'guest_house') return 'ที่พัก';
   if (t.tourism) return 'สถานที่ท่องเที่ยว';
   if (t.historic) return 'โบราณสถาน';
   if (t.natural === 'beach') return 'ชายหาด';
+  if (t.place === 'island' || t.natural === 'island') return 'เกาะ';
   if (t.natural === 'peak') return 'ยอดเขา';
   if (t.waterway === 'waterfall') return 'น้ำตก';
   if (t.leisure === 'park' || t.leisure === 'garden') return 'สวน';
@@ -35,8 +52,8 @@ function kindLabel(t) {
 function placeScore(t) {
   if (t.tourism === 'attraction' || t.tourism === 'viewpoint' || t.tourism === 'museum') return 5;
   if (t.historic || t.amenity === 'place_of_worship' || t.natural === 'beach' || t.natural === 'peak' || t.waterway === 'waterfall') return 5;
-  if (t.boundary === 'national_park' || t.leisure === 'nature_reserve' || t.leisure === 'park') return 4;
-  if (t.amenity === 'cafe' || t.amenity === 'restaurant' || t.amenity === 'marketplace') return 3;
+  if (t.boundary === 'national_park' || t.leisure === 'nature_reserve' || t.leisure === 'park' || t.place === 'island' || t.tourism === 'theme_park' || t.tourism === 'zoo' || t.shop === 'mall') return 4;
+  if (t.amenity === 'cafe' || t.amenity === 'restaurant' || t.amenity === 'marketplace' || t.tourism === 'camp_site') return 3;
   if (t.tourism) return 2;
   return 1;
 }
@@ -44,9 +61,9 @@ function placeScore(t) {
 function overpassQuery(lat, lng, r) {
   const a = `(around:${r},${lat.toFixed(6)},${lng.toFixed(6)})["name"]`;
   return `[out:json][timeout:12];(
-    nwr${a}["tourism"~"attraction|viewpoint|museum|theme_park|zoo|gallery|artwork|hotel|resort|guest_house"];
+    nwr${a}["tourism"~"attraction|viewpoint|museum|theme_park|zoo|aquarium|gallery|artwork|camp_site|hotel|resort|guest_house|hostel"];
     nwr${a}["historic"];
-    nwr${a}["amenity"~"place_of_worship|restaurant|cafe|marketplace|food_court"];
+    nwr${a}["amenity"~"place_of_worship|restaurant|cafe|marketplace|food_court|bar|pub|arts_centre"];
     nwr${a}["natural"~"beach|peak|bay|cave_entrance|volcano|spring"];
     nwr${a}["waterway"="waterfall"];
     nwr${a}["leisure"~"park|garden|nature_reserve|beach_resort"];
