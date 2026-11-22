@@ -244,6 +244,7 @@ function openTripDetail(id) {
     ${sheetHead(esc(t.name))}
     ${st.cover ? `<div class="gallery"><img src="${st.cover}" alt=""></div>` : ''}
     <div class="muted">${t.plan ? `<span class="plan-tag"><i class="ti ti-map-route"></i> วางแผนไว้</span> ` : ''}${esc(fmtRange(r.start, r.end) || (t.plan ? 'ยังไม่กำหนดวัน' : 'ยังไม่มีวันที่'))}</div>
+    ${t.plan ? nextStopCard(t, st.ps) : ''}
     <div class="trip-stats">
       <div><b>${st.ps.length}</b><span>สถานที่</span></div>
       <div><b>${st.countries > 1 ? st.countries : st.provinces}</b><span>${st.countries > 1 ? 'ประเทศ' : 'จังหวัด'}</span></div>
@@ -254,7 +255,7 @@ function openTripDetail(id) {
       <button class="rt-btn" data-action="toggle-roundtrip" data-id="${t.id}" aria-pressed="false"><i class="ti ti-arrows-exchange"></i> ไป-กลับ</button>
     </div>` : ''}
     ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
-    ${t.plan && st.ps.length ? `<button class="btn primary block" data-action="plan-finish" data-id="${t.id}"><i class="ti ti-circle-check"></i> ไปทริปนี้มาแล้ว</button>` : ''}
+    ${t.plan && st.ps.length ? `<button class="btn block" data-action="plan-finish" data-id="${t.id}"><i class="ti ti-circle-check"></i> ${st.ps.some(p => p.status !== 'wish') ? 'จบทริป' : 'ไปทริปนี้มาแล้ว'}</button>` : ''}
     ${st.ps.length > 0 ? `<button class="btn ${t.plan ? '' : 'primary'} block" data-action="show-route" data-id="${t.id}" ${t.plan ? 'style="margin-top:8px"' : ''}><i class="ti ti-route"></i> ดูเส้นทางบนแผนที่</button>` : ''}
     ${t.plan ? planStops(t, st.ps) : st.ps.length ? st.ps.map((p, i) => placeItem(p, `<span class="num">${i + 1}</span>`)).join('')
       : '<p class="muted small">ยังไม่มีหมุดในทริปนี้ ตอนปักหมุดให้เลือกทริปนี้ในช่อง "ทริป"</p>'}
@@ -268,10 +269,54 @@ function openTripDetail(id) {
 }
 ACTIONS['open-trip'] = el => openTripDetail(el.dataset.id);
 
+/* During a planned trip: the next place in order, with "arrived", "skip" and directions. */
+function nextStopCard(t, ps) {
+  const next = ps.find(p => p.status === 'wish');
+  if (!next) return '';
+  const done = ps.filter(p => p.status !== 'wish').length, n = ps.indexOf(next) + 1;
+  const last = S.lastArrived && S.lastArrived.trip === t.id && pinById(S.lastArrived.pin);
+  const left = ps.filter(p => p.status === 'wish').length;
+  return `
+    <div class="next-card">
+      <div class="nc-bar"><div style="width:${Math.round(done / ps.length * 100)}%"></div></div>
+      <div class="nc-head">${done ? `ไปแล้ว ${done}/${ps.length} · ที่ต่อไป` : 'ที่แรกของทริป'}</div>
+      <div class="nc-place"><span class="num">${n}</span><b>${esc(next.name)}</b></div>
+      <div class="nc-btns">
+        <button class="btn primary" data-action="arrive" data-id="${next.id}"><i class="ti ti-map-pin-check"></i> ถึงแล้ว</button>
+        <a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${next.lat},${next.lng}" target="_blank" rel="noopener"><i class="ti ti-navigation"></i> นำทาง</a>
+        ${left > 1 ? `<button class="btn" data-action="skip-stop" data-id="${next.id}" aria-label="ข้ามไปก่อน"><i class="ti ti-player-skip-forward"></i></button>` : ''}
+      </div>
+      ${last ? `<button class="nc-last" data-action="edit-pin" data-id="${last.id}"><i class="ti ti-camera-plus"></i> เพิ่งถึง ${esc(last.name)} · ใส่รูปหรือรีวิว</button>` : ''}
+    </div>`;
+}
+/* Arrived: mark this place visited today, straight away (photos and a review can be added after). */
+ACTIONS['arrive'] = async el => {
+  const p = pinById(el.dataset.id), tripId = p.tripId;
+  const before = snapshot();
+  Object.assign(p, { status: 'visited', date: today(), fromWish: true, updatedAt: Date.now() });
+  await DB.put('pins', p);
+  S.lastArrived = { trip: tripId, pin: p.id };
+  const finished = await settlePlans();
+  renderAll();
+  reopenTrip(tripId);
+  const badge = computeBadges().find(b => b.done && !before.badges.has(b.id));
+  if (finished) toast(`ครบทุกที่แล้ว! ย้าย "${finished.name}" ไปอยู่ในทริปที่ไปแล้ว`, 3500);
+  else toast(badge ? `ได้แสตมป์ใหม่: ${badge.name}` : `ถึง ${p.name} แล้ว`, 2600);
+};
+/* Skip for now: move this place to the end of the order. */
+ACTIONS['skip-stop'] = async el => {
+  const p = pinById(el.dataset.id), list = tripStops(p.tripId).filter(x => x !== p);
+  list.push(p);
+  await saveStopOrder(list);
+  reopenTrip(p.tripId);
+  toast(`ย้าย ${p.name} ไปไว้ท้ายสุด`);
+};
+
 /* Stops of a planned trip, with buttons to change the order. */
 function planStops(t, ps) {
+  const next = ps.find(p => p.status === 'wish');
   const rows = ps.map((p, i) => `
-    <div class="stop">
+    <div class="stop ${p === next && ps.some(x => x.status !== 'wish') ? 'next' : ''}">
       ${placeItem(p, `<span class="num ${p.status !== 'wish' ? 'done' : ''}">${p.status !== 'wish' ? '<i class="ti ti-check"></i>' : i + 1}</span>`)}
       <div class="stop-move">
         <button data-action="stop-move" data-id="${p.id}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนขึ้น"><i class="ti ti-chevron-up"></i></button>

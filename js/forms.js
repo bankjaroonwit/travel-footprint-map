@@ -255,7 +255,9 @@ async function settlePlans() {
   for (const t of planTrips()) {
     const ps = S.pins.filter(p => p.tripId === t.id);
     if (ps.length && ps.every(p => p.status !== 'wish')) {
+      const dates = ps.map(p => p.date).filter(isDate).sort();
       t.plan = false;
+      if (dates.length) { t.start = dates[0]; t.end = dates[dates.length - 1]; }
       await DB.put('trips', t);
       done = t;
     }

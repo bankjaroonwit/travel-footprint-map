@@ -102,6 +102,18 @@ main { flex: 1; position: relative; overflow: hidden; }
 .stop-move button:disabled { opacity: .3; }
 .item .num.done { background: var(--accent-2); }
 .plan-actions { margin: 4px 0 6px; }
+.next-card { background: var(--accent-soft); border: 1px solid var(--accent-2); border-radius: var(--radius); padding: 12px; margin: 12px 0 14px; }
+.nc-bar { height: 5px; border-radius: 99px; background: rgba(0, 0, 0, .08); overflow: hidden; margin-bottom: 10px; }
+.nc-bar > div { height: 100%; background: var(--accent-2); border-radius: 99px; transition: width .4s; }
+.nc-head { font-size: 12px; color: var(--muted); }
+.nc-place { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: 17px; }
+.nc-place b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-place .num { width: 26px; height: 26px; border-radius: 50%; background: #993c1d; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }
+.nc-btns { display: flex; gap: 8px; }
+.nc-btns .btn { flex: 1; justify-content: center; text-decoration: none; }
+.nc-btns .btn:last-child[data-action="skip-stop"] { flex: 0 0 48px; }
+.nc-last { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 10px; border: 0; background: none; color: var(--accent); font: inherit; font-size: 14px; padding: 2px 0; text-align: left; }
+.stop.next .item { border-color: var(--accent-2); border-width: 2px; }
 .pick-item .pick-mark { font-size: 24px; color: var(--muted); flex: none; }
 .pick-item.on { border-color: var(--accent-2); }
 .pick-item:disabled { opacity: .6; }
