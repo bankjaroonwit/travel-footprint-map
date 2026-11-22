@@ -56,6 +56,8 @@ function openPinForm(p) {
         <label for="f-name">ชื่อสถานที่</label>
         <input class="input" id="f-name" value="${esc(d.name)}" placeholder="ดอยอินทนนท์" maxlength="120" autocomplete="off">
         <div class="err" id="f-name-err" hidden>ใส่ชื่อสถานที่ก่อน</div>
+        <div class="near" id="f-near" hidden></div>
+        ${isNew && !d.name ? '' : '<button type="button" class="link near-btn" data-action="f-near-load"><i class="ti ti-map-search"></i> ลืมชื่อ? ดูสถานที่แถวนี้</button>'}
       </div>
       <div class="loc-line"><i class="ti ti-map-pin"></i><span>${esc(locText(d))}</span>·<button type="button" class="link" data-action="f-move">เปลี่ยนตำแหน่ง</button></div>
       <div class="row v-only">
@@ -108,7 +110,7 @@ function openPinForm(p) {
       </div>
     </div>`);
   renderDraftPhotos();
-  if (isNew && !d.name) setTimeout(() => { const n = $('#f-name'); if (n) n.focus(); }, 320);
+  if (isNew && !d.name) loadNear(d.photos.length > 0);
 }
 
 function renderDraftPhotos() {

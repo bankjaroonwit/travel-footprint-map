@@ -440,3 +440,19 @@ button, a, label, .tab, .round-btn, .fab, .chip, .seg button { touch-action: man
 .rc-hl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 .rc-hl:empty { display: none; }
 .sheet h3 > .ti { color: var(--accent-2); }
+
+/* nearby place names in the pin form */
+.near { margin-top: 8px; background: var(--surface-2); border-radius: 12px; padding: 10px; }
+.near-head { font-size: 13px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.near-head > .ti { color: var(--accent-2); }
+.near-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+.near-item {
+  flex: none; max-width: 200px; text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: 10px;
+  padding: 6px 10px; display: flex; flex-direction: column;
+}
+.near-item b { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.near-item span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.near-item.on { border-color: var(--accent-2); background: var(--accent-soft); }
+.near-btn { display: inline-flex; gap: 4px; align-items: center; font-size: 13px; margin-top: 6px; }
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
