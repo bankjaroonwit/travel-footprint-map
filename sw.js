@@ -1,6 +1,6 @@
 /* Offline support: app files network-first, libraries and boundaries stale-while-revalidate,
    map tiles cache-first with a size cap. Place search always goes to the network. */
-const VERSION = 'footprint-v25';
+const VERSION = 'footprint-v26';
 const TILE_CACHE = 'footprint-tiles';
 const TILE_LIMIT = 600;
 const SHELL = [

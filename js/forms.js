@@ -381,11 +381,25 @@ ACTIONS['search-pick'] = el => {
 /* ---------- pin from photos (reads GPS from EXIF) ---------- */
 ACTIONS['import-photos'] = () => $('#photo-import').click();
 
+/* The phone's position, or null (no permission, no signal, or too slow). */
+function currentPosition() {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => res(null),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  });
+}
+
 async function importFromPhotos(files) {
   if (!files.length) return;
   toast('กำลังอ่านรูป…');
   let gps = null, date = '';
   const photos = [];
+  // A photo taken a moment ago with the camera: iPhone removes its location for privacy, but we are
+  // standing where it was taken, so the phone's current position is the right place.
+  const fresh = files.some(f => Date.now() - f.lastModified < 3 * 60 * 1000);
   for (const f of files) {
     const ex = await readExif(f);
     if (ex) {
@@ -398,10 +412,16 @@ async function importFromPhotos(files) {
   if (!photos.length) return;
   const extra = { photos, date: date && date <= today() ? date : today() };
   switchView('map');
+  let here = false;
+  if (!gps && fresh) {
+    toast('รูปไม่มีพิกัด กำลังใช้ตำแหน่งปัจจุบัน…');
+    gps = await currentPosition();
+    here = !!gps;
+  }
   if (gps) {
-    map.setView([gps.lat, gps.lng], 13, { animate: false });
+    map.setView([gps.lat, gps.lng], here ? 16 : 13, { animate: false });
     openPinForm(newPin(gps.lat, gps.lng, extra));
-    toast('เจอพิกัดในรูป ปักหมุดให้แล้ว');
+    toast(here ? 'ปักหมุดตรงที่คุณอยู่ตอนนี้แล้ว' : 'เจอพิกัดในรูป ปักหมุดให้แล้ว');
   } else {
     startPick('รูปไม่มีพิกัด แตะตรงที่ถ่ายรูปนี้', ll => openPinForm(newPin(ll.lat, ll.lng, extra)));
   }
