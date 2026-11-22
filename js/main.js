@@ -25,6 +25,51 @@ document.addEventListener('touchmove', e => {
   if (e.touches.length > 1 && !e.target.closest('#map, .pd-map')) e.preventDefault();
 }, { passive: false });
 
+/* Swipe a sheet down to close it (phones and small tablets, where it is a bottom sheet).
+   Only starts when the sheet is scrolled to the top and the finger moves mostly downward. */
+(function sheetSwipe() {
+  const sheet = $('#sheet'), backdrop = $('#sheet-backdrop');
+  let y0 = 0, x0 = 0, t0 = 0, dy = 0, state = '';  // '' | 'wait' | 'drag' | 'off'
+  const reset = () => {
+    sheet.style.transition = ''; sheet.style.transform = '';
+    backdrop.style.transition = ''; backdrop.style.opacity = '';
+  };
+  sheet.addEventListener('touchstart', e => {
+    state = 'off';
+    if (e.touches.length !== 1 || matchMedia('(min-width: 900px)').matches) return;
+    if (e.target.closest('textarea, select, input[type="range"], .pd-map')) return;
+    if (sheet.scrollTop > 0) return;
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; t0 = Date.now(); dy = 0; state = 'wait';
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (state === 'off' || state === '') return;
+    const ddy = e.touches[0].clientY - y0, ddx = e.touches[0].clientX - x0;
+    if (state === 'wait') {
+      if (Math.abs(ddy) < 8 && Math.abs(ddx) < 8) return;
+      if (ddy <= 0 || Math.abs(ddx) > Math.abs(ddy) || sheet.scrollTop > 0) { state = 'off'; return; }
+      state = 'drag';
+      sheet.style.transition = 'none'; backdrop.style.transition = 'none';
+    }
+    e.preventDefault();
+    dy = Math.max(0, ddy);
+    sheet.style.transform = `translate(-50%, ${dy}px)`;
+    backdrop.style.opacity = String(Math.max(0, 1 - dy / (sheet.offsetHeight || 1)));
+  }, { passive: false });
+  const end = () => {
+    if (state !== 'drag') { state = ''; return; }
+    state = '';
+    const fast = dy / Math.max(1, Date.now() - t0) > 0.6;
+    if (dy > Math.min(140, sheet.offsetHeight * 0.25) || (fast && dy > 40)) {
+      reset();
+      closeSheet();
+    } else {
+      reset();
+    }
+  };
+  sheet.addEventListener('touchend', end);
+  sheet.addEventListener('touchcancel', end);
+})();
+
 (async function boot() {
   applyTheme();
   S.mode = Prefs.get('mode', 'th') === 'world' ? 'world' : 'th';
