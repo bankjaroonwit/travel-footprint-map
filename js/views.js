@@ -268,42 +268,169 @@ function journalLinks(entries, presetAttr) {
 ACTIONS['show-route'] = el => showRoute(el.dataset.id);
 
 /* ---------- photo viewer ---------- */
-const VW = { photos: [], i: 0 };
-function showViewer() {
-  $('#viewer-img').src = VW.photos[VW.i];
-  $('#viewer-count').textContent = VW.photos.length > 1 ? `${VW.i + 1} / ${VW.photos.length}` : '';
-  $('#viewer-prev').hidden = $('#viewer-next').hidden = VW.photos.length < 2;
+/* Full-screen photos: swipe sideways to change, swipe down to close, pinch or double-tap to zoom,
+   tap to hide the bars. */
+const VW = { photos: [], i: 0, scale: 1, tx: 0, ty: 0 };
+const vwImg = () => $('#viewer-track').children[VW.i]?.querySelector('img');
+function vwZoom(s, tx = 0, ty = 0, anim = true) {
+  const img = vwImg();
+  if (!img) return;
+  if (s > 1) {  // keep the zoomed photo covering the screen edges it can reach
+    const mx = Math.max(0, (img.offsetWidth * s - innerWidth) / 2), my = Math.max(0, (img.offsetHeight * s - innerHeight) / 2);
+    tx = Math.min(mx, Math.max(-mx, tx)); ty = Math.min(my, Math.max(-my, ty));
+  } else { s = 1; tx = ty = 0; }
+  Object.assign(VW, { scale: s, tx, ty });
+  img.style.transition = anim ? 'transform .25s ease' : 'none';
+  img.style.transform = s === 1 ? '' : `translate(${tx}px, ${ty}px) scale(${s})`;
+  $('#viewer').classList.toggle('zoomed', s > 1);
+}
+function vwTrack(dx = 0, anim = true) {
+  const t = $('#viewer-track');
+  t.style.transition = anim ? 'transform .32s cubic-bezier(.2, .8, .2, 1)' : 'none';
+  t.style.transform = `translateX(calc(${-VW.i * 100}% + ${dx}px))`;
+}
+function showViewer(anim = true) {
+  const n = VW.photos.length;
+  $('#viewer-count').textContent = `${VW.i + 1} / ${n}`;
+  $('#viewer-count').hidden = $('#viewer-prev').hidden = $('#viewer-next').hidden = n < 2;
+  $('#viewer-bg').style.backgroundImage = `url('${VW.photos[VW.i]}')`;
+  $$('#viewer-thumbs img').forEach((im, k) => im.classList.toggle('on', k === VW.i));
+  const th = $('#viewer-thumbs').children[VW.i];
+  if (th) th.parentNode.scrollTo({ left: th.offsetLeft - th.parentNode.clientWidth / 2 + th.offsetWidth / 2, behavior: anim ? 'smooth' : 'auto' });
+  vwTrack(0, anim);
 }
 function stepViewer(d) {
-  VW.i = (VW.i + d + VW.photos.length) % VW.photos.length;
+  const n = VW.photos.length;
+  if (n < 2) return;
+  vwZoom(1, 0, 0, false);
+  VW.i = (VW.i + d + n) % n;
   showViewer();
 }
+function openViewer(photos, i, cap) {
+  Object.assign(VW, { photos, i, scale: 1, tx: 0, ty: 0 });
+  $('#viewer-track').innerHTML = photos.map(s => `<div class="v-slide"><img src="${s}" alt="" draggable="false"></div>`).join('');
+  $('#viewer-thumbs').innerHTML = photos.length > 1
+    ? photos.map((s, k) => `<img src="${s}" alt="" data-action="viewer-go" data-i="${k}">`).join('') : '';
+  $('#viewer-cap').innerHTML = cap;
+  const v = $('#viewer');
+  v.classList.remove('in', 'chrome-off', 'zoomed', 'dragging');
+  v.style.removeProperty('--bg-o');
+  v.hidden = false;
+  showViewer(false);
+  void v.offsetWidth;  // start the fade-in from the hidden state
+  v.classList.add('in');
+}
+function closeViewer() {
+  const v = $('#viewer');
+  if (v.hidden || !v.classList.contains('in')) return;
+  v.classList.remove('in');
+  setTimeout(() => {
+    v.hidden = true;
+    v.classList.remove('dragging');
+    v.style.removeProperty('--bg-o');
+    $('#viewer-track').innerHTML = '';
+  }, 230);
+}
 ACTIONS['view-photo'] = el => {
-  const src = el.dataset.kind === 'journal' ? journalById(el.dataset.id) : pinById(el.dataset.id);
+  const j = el.dataset.kind === 'journal', src = j ? journalById(el.dataset.id) : pinById(el.dataset.id);
   if (!src) return;
-  VW.photos = src.photos;
-  VW.i = +el.dataset.i;
-  $('#viewer').hidden = false;
-  showViewer();
+  const sub = j ? fmtDate(src.date) : [fmtDate(src.date), src.province ? 'จ.' + src.province : ''].filter(Boolean).join(' · ');
+  openViewer(src.photos, +el.dataset.i || 0, `<b>${esc((j ? src.title : src.name) || '')}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`);
 };
-ACTIONS['viewer-close'] = () => { $('#viewer').hidden = true; };
+ACTIONS['viewer-close'] = () => closeViewer();
 ACTIONS['viewer-prev'] = () => stepViewer(-1);
 ACTIONS['viewer-next'] = () => stepViewer(1);
+ACTIONS['viewer-go'] = el => stepViewer(+el.dataset.i - VW.i);
 (() => {
-  let x0 = null;
   const v = $('#viewer');
-  v.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
-  v.addEventListener('touchend', e => {
-    if (x0 === null) return;
-    const dx = e.changedTouches[0].clientX - x0;
-    x0 = null;
-    if (Math.abs(dx) > 50 && VW.photos.length > 1) stepViewer(dx < 0 ? 1 : -1);
+  let g = null, lastTap = 0, tapTimer = 0, lastTouch = 0;
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  const toggleChrome = () => v.classList.toggle('chrome-off');
+  const zoomAt = (x, y) => {
+    if (VW.scale > 1) return vwZoom(1);
+    const s = 2.5, cx = x - innerWidth / 2, cy = y - innerHeight / 2;
+    vwZoom(s, -cx * (s - 1), -cy * (s - 1));
+  };
+  v.addEventListener('touchstart', e => {
+    lastTouch = Date.now();
+    if (e.target.closest('button, .v-thumbs')) { g = null; return; }
+    const t = e.touches;
+    if (t.length === 2) {
+      g = { mode: 'pinch', d0: dist(t[0], t[1]), s0: VW.scale, tx0: VW.tx, ty0: VW.ty,
+        cx: (t[0].clientX + t[1].clientX) / 2 - innerWidth / 2, cy: (t[0].clientY + t[1].clientY) / 2 - innerHeight / 2 };
+    } else if (t.length === 1) {
+      g = { mode: '', x0: t[0].clientX, y0: t[0].clientY, t0: Date.now(), dx: 0, dy: 0, tx0: VW.tx, ty0: VW.ty };
+    }
+  }, { passive: true });
+  v.addEventListener('touchmove', e => {
+    if (!g) return;
+    e.preventDefault();
+    const t = e.touches;
+    if (g.mode === 'pinch') {
+      if (t.length < 2) return;
+      const s = Math.min(4, Math.max(1, g.s0 * dist(t[0], t[1]) / g.d0)), k = s / g.s0;
+      vwZoom(s, g.cx - (g.cx - g.tx0) * k, g.cy - (g.cy - g.ty0) * k, false);
+      return;
+    }
+    g.dx = t[0].clientX - g.x0; g.dy = t[0].clientY - g.y0;
+    if (!g.mode) {
+      if (Math.hypot(g.dx, g.dy) < 8) return;
+      g.mode = VW.scale > 1 ? 'pan' : Math.abs(g.dx) > Math.abs(g.dy) ? 'swipe' : g.dy > 0 ? 'down' : 'none';
+      if (g.mode === 'down') v.classList.add('dragging');
+    }
+    if (g.mode === 'pan') vwZoom(VW.scale, g.tx0 + g.dx, g.ty0 + g.dy, false);
+    else if (g.mode === 'swipe') vwTrack(VW.photos.length > 1 ? g.dx : g.dx / 4, false);
+    else if (g.mode === 'down') {
+      const p = Math.min(1, Math.max(0, g.dy) / 420), img = vwImg();
+      img.style.transition = 'none';
+      img.style.transform = `translate(${g.dx * .6}px, ${Math.max(0, g.dy)}px) scale(${1 - p * .3})`;
+      v.style.setProperty('--bg-o', String(1 - p * .9));
+    }
+  }, { passive: false });
+  const end = e => {
+    if (!g) return;
+    if (e.touches && e.touches.length) {  // a finger is still down
+      if (g.mode === 'pinch' && e.touches.length === 1) g = null;
+      return;
+    }
+    const G = g; g = null;
+    const dt = Math.max(1, Date.now() - G.t0);
+    if (G.mode === 'pinch') { if (VW.scale < 1.08) vwZoom(1); return; }
+    if (G.mode === 'pan') return;
+    if (G.mode === 'swipe') {
+      if (VW.photos.length > 1 && (Math.abs(G.dx) > innerWidth * .2 || Math.abs(G.dx) / dt > .5)) stepViewer(G.dx < 0 ? 1 : -1);
+      else vwTrack(0);
+      return;
+    }
+    if (G.mode === 'down') {
+      if (G.dy > 110 || (G.dy > 40 && G.dy / dt > .6)) { closeViewer(); return; }
+      v.classList.remove('dragging');
+      v.style.removeProperty('--bg-o');
+      const img = vwImg();
+      if (img) { img.style.transition = 'transform .25s ease'; img.style.transform = ''; }
+      return;
+    }
+    if (G.mode || dt > 350) return;
+    // a tap: double tap zooms, single tap hides/shows the bars
+    const now = Date.now();
+    if (now - lastTap < 300) { clearTimeout(tapTimer); lastTap = 0; zoomAt(G.x0, G.y0); }
+    else { lastTap = now; tapTimer = setTimeout(toggleChrome, 300); }
+  };
+  v.addEventListener('touchend', end);
+  v.addEventListener('touchcancel', end);
+  // mouse: click outside the photo closes, double-click zooms
+  v.addEventListener('click', e => {
+    if (Date.now() - lastTouch < 800 || e.target.closest('button, .v-thumbs, .v-bottom')) return;
+    if (e.target.tagName !== 'IMG' && VW.scale === 1) closeViewer();
   });
-  v.addEventListener('click', e => { if (e.target === v) v.hidden = true; });
+  v.addEventListener('dblclick', e => {
+    if (Date.now() - lastTouch < 800 || e.target.tagName !== 'IMG') return;
+    zoomAt(e.clientX, e.clientY);
+  });
 })();
 document.addEventListener('keydown', e => {
   if (!$('#viewer').hidden) {
-    if (e.key === 'Escape') $('#viewer').hidden = true;
+    if (e.key === 'Escape') closeViewer();
     if (e.key === 'ArrowLeft') stepViewer(-1);
     if (e.key === 'ArrowRight') stepViewer(1);
   } else if (e.key === 'Escape') {

@@ -26,7 +26,8 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 /* Swipe a sheet down to close it (phones and small tablets, where it is a bottom sheet).
-   Only starts when the sheet is scrolled to the top and the finger moves mostly downward. */
+   Only from the top of the sheet (grip, title bar, photo header) while it is scrolled to the top,
+   so touches on the content always scroll normally. */
 (function sheetSwipe() {
   const sheet = $('#sheet'), backdrop = $('#sheet-backdrop');
   let y0 = 0, x0 = 0, t0 = 0, dy = 0, state = '';  // '' | 'wait' | 'drag' | 'off'
@@ -39,6 +40,9 @@ document.addEventListener('touchmove', e => {
     if (e.touches.length !== 1 || matchMedia('(min-width: 900px)').matches) return;
     if (e.target.closest('textarea, select, input[type="range"], .pd-map')) return;
     if (sheet.scrollTop > 0) return;
+    const y = e.touches[0].clientY;
+    const inHandle = e.target.closest('.grip, .sheet-head, .pd-top') || y - sheet.getBoundingClientRect().top < 56;
+    if (!inHandle) return;
     y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; t0 = Date.now(); dy = 0; state = 'wait';
   }, { passive: true });
   sheet.addEventListener('touchmove', e => {

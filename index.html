@@ -109,12 +109,19 @@
     <div id="sheet-body"></div>
   </div>
 
-  <div id="viewer" hidden>
-    <img id="viewer-img" alt="">
-    <button class="v-btn" id="viewer-close" data-action="viewer-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+  <div id="viewer" role="dialog" aria-modal="true" aria-label="ดูรูป" hidden>
+    <div class="v-bg" id="viewer-bg"></div>
+    <div class="v-track" id="viewer-track"></div>
+    <div class="v-top">
+      <span id="viewer-count"></span>
+      <button class="v-btn" id="viewer-close" data-action="viewer-close" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
     <button class="v-btn" id="viewer-prev" data-action="viewer-prev" aria-label="รูปก่อนหน้า"><i class="ti ti-chevron-left"></i></button>
     <button class="v-btn" id="viewer-next" data-action="viewer-next" aria-label="รูปถัดไป"><i class="ti ti-chevron-right"></i></button>
-    <div id="viewer-count"></div>
+    <div class="v-bottom">
+      <div class="v-cap" id="viewer-cap"></div>
+      <div class="v-thumbs" id="viewer-thumbs"></div>
+    </div>
   </div>
 
   <div id="toast" role="status"></div>
