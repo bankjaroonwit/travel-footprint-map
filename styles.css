@@ -34,7 +34,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
 html { background: var(--bg); }
 /* Edge to edge: on an iPhone home-screen app the page runs under the status bar (see the meta tag),
    so the top of each screen leaves room for it. --sat is that room (0 everywhere else). */
