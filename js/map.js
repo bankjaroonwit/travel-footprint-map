@@ -210,26 +210,53 @@ ACTIONS['cancel-pick'] = () => {
 };
 
 /* ---------- trip route ---------- */
-function showRoute(tripId) {
+/* Draws the trip straight away with straight dashed lines, then swaps in the road route once it's known
+   (see route.js). Road legs are solid; flight/boat legs stay dashed. */
+function showRoute(tripId, opts = {}) {
   const t = tripById(tripId), ps = tripPins(tripId);
   if (!t || !ps.length) return toast('ทริปนี้ยังไม่มีหมุด');
   routeLayer.clearLayers();
+  const rt = roundTrip();
   const ll = ps.map(p => [p.lat, p.lng]);
-  if (ll.length > 1) L.polyline(ll, { color: '#D85A30', weight: 3, dashArray: '6 8', opacity: 0.9, interactive: false }).addTo(routeLayer);
+  const lines = L.layerGroup().addTo(routeLayer);
+  const dashed = { color: '#D85A30', weight: 3, dashArray: '6 8', opacity: 0.9, interactive: false };
+  if (ll.length > 1) L.polyline(rt ? [...ll, ll[0]] : ll, dashed).addTo(lines);
+  const setChip = txt => { $('#route-text').textContent = `${t.name} · ${txt}`; };
+  const draw = r => {
+    if (!r || S.routeTrip !== tripId || roundTrip() !== rt) return;
+    lines.clearLayers();
+    for (const l of r.legs) {
+      if (l.road) {
+        L.polyline(l.coords, { color: '#fff', weight: 7, opacity: 0.85, interactive: false }).addTo(lines);
+        L.polyline(l.coords, { color: '#D85A30', weight: 4, opacity: 0.95, interactive: false }).addTo(lines);
+      } else L.polyline(l.coords, dashed).addTo(lines);
+    }
+    setChip(roadText(r, rt));
+    if (fresh && !opts.keepView) fit();
+  };
+  let fresh = false;
+  const fit = () => {
+    map.invalidateSize();
+    const parts = lines.getLayers();
+    const b = parts.length ? L.featureGroup(parts).getBounds() : L.latLngBounds(ll);
+    if (ll.length > 1) map.fitBounds(b, { paddingTopLeft: [40, TOP_PAD + 40], paddingBottomRight: [80, 60], maxZoom: 13 });
+    else map.setView(ll[0], 12);
+  };
   ps.forEach((p, i) => L.marker([p.lat, p.lng], {
     icon: L.divIcon({ className: 'pin-wrap', html: `<div class="route-num">${i + 1}</div>`, iconSize: [22, 22], iconAnchor: [-6, 46] }),
     interactive: false, zIndexOffset: 1000,
   }).addTo(routeLayer));
   S.routeTrip = tripId;
-  $('#route-text').textContent = `${t.name} · ${fmtKm(pathKm(ps))} กม.`;
   $('#route-chip').hidden = false;
+  if (ll.length > 1) {
+    const hit = cachedRoad(tripId, rt);
+    if (hit) draw(hit);
+    else { setChip('กำลังคำนวณเส้นทาง…'); fresh = true; roadRoute(tripId, rt).then(draw); }
+  } else setChip('1 ที่');
+  if (opts.keepView) return;
   closeSheet();
   switchView('map');
-  setTimeout(() => {
-    map.invalidateSize();
-    if (ll.length > 1) map.fitBounds(ll, { paddingTopLeft: [40, TOP_PAD + 40], paddingBottomRight: [80, 60], maxZoom: 13 });
-    else map.setView(ll[0], 12);
-  }, 50);
+  setTimeout(fit, 50);
 }
 function clearRoute() {
   routeLayer.clearLayers();

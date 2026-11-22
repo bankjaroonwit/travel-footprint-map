@@ -1,11 +1,11 @@
 /* Offline support: app files network-first, libraries and boundaries stale-while-revalidate,
    map tiles cache-first with a size cap. Place search always goes to the network. */
-const VERSION = 'footprint-v17';
+const VERSION = 'footprint-v19';
 const TILE_CACHE = 'footprint-tiles';
 const TILE_LIMIT = 600;
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
-  'js/core.js', 'js/geo.js', 'js/map.js', 'js/forms.js', 'js/nearby.js', 'js/views.js', 'js/journal.js', 'js/recap.js', 'js/main.js',
+  'js/core.js', 'js/geo.js', 'js/map.js', 'js/forms.js', 'js/nearby.js', 'js/route.js', 'js/views.js', 'js/journal.js', 'js/recap.js', 'js/main.js',
 ];
 
 self.addEventListener('install', e => {
@@ -31,7 +31,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  if (url.hostname.includes('nominatim')) return;
+  if (url.hostname.includes('nominatim') || url.hostname === 'routing.openstreetmap.de') return;
 
   if (url.hostname === 'tile.openstreetmap.org') {
     e.respondWith(caches.open(TILE_CACHE).then(async c => {

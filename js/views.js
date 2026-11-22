@@ -98,7 +98,7 @@ function tripStats(t) {
     ps,
     provinces: new Set(ps.map(p => p.province).filter(Boolean)).size,
     countries: new Set(ps.map(p => p.country).filter(Boolean)).size,
-    km: pathKm(ps),
+    km: (cachedRoad(t.id) || {}).km ?? pathKm(ps),
     cover: (ps.find(p => p.photos.length) || {}).photos?.[0] || '',
   };
 }
@@ -242,8 +242,12 @@ function openTripDetail(id) {
     <div class="trip-stats">
       <div><b>${st.ps.length}</b><span>สถานที่</span></div>
       <div><b>${st.countries > 1 ? st.countries : st.provinces}</b><span>${st.countries > 1 ? 'ประเทศ' : 'จังหวัด'}</span></div>
-      <div><b>${fmtKm(st.km)}</b><span>กม. โดยประมาณ</span></div>
+      <div id="trip-road" data-id="${t.id}"><b>${fmtKm(st.km)}</b><span>กม. โดยประมาณ</span></div>
     </div>
+    ${st.ps.length > 1 ? `<div class="road-row" id="trip-road-row">
+      <span class="road-info"></span>
+      <button class="rt-btn" data-action="toggle-roundtrip" data-id="${t.id}" aria-pressed="false"><i class="ti ti-arrows-exchange"></i> ไป-กลับ</button>
+    </div>` : ''}
     ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
     ${st.ps.length > 0 ? `<button class="btn primary block" data-action="show-route" data-id="${t.id}"><i class="ti ti-route"></i> ดูเส้นทางบนแผนที่</button>` : ''}
     ${st.ps.length ? st.ps.map((p, i) => placeItem(p, `<span class="num">${i + 1}</span>`)).join('')
@@ -254,8 +258,29 @@ function openTripDetail(id) {
       <button class="btn danger" data-action="delete-trip" data-id="${t.id}"><i class="ti ti-trash"></i> ลบทริป</button>
       <button class="btn" data-action="edit-trip" data-id="${t.id}"><i class="ti ti-edit"></i> แก้ไข</button>
     </div>`);
+  fillTripRoad(t.id);
 }
 ACTIONS['open-trip'] = el => openTripDetail(el.dataset.id);
+
+/* Fills in the road distance and driving time on an open trip page (looked up in the background). */
+function fillTripRoad(id) {
+  const box = $('#trip-road'), row = $('#trip-road-row');
+  if (!box || !row) return;
+  const rt = roundTrip(), info = row.querySelector('.road-info'), btn = row.querySelector('.rt-btn');
+  btn.classList.toggle('on', rt);
+  btn.setAttribute('aria-pressed', String(rt));
+  const paint = r => {
+    if (!r || $('#trip-road') !== box || roundTrip() !== rt) return;
+    box.innerHTML = `<b>${fmtKm(r.km)}</b><span>กม. ${rt ? 'ไป-กลับ' : r.roadKm ? 'ตามถนน' : 'เส้นตรง'}</span>`;
+    if (r.roadKm) info.innerHTML = `<i class="ti ti-car"></i> ขับรถ ~${fmtDur(r.sec)}${r.flyKm ? ` <span class="muted">· เรือ/บิน ${fmtKm(r.flyKm)} กม.</span>` : ''}`;
+    else if (r.failed) info.innerHTML = '<i class="ti ti-wifi-off"></i> คำนวณตามถนนไม่ได้ตอนนี้ แสดงเส้นตรงแทน';
+    else info.innerHTML = '<i class="ti ti-plane"></i> ถนนไปไม่ถึง นับเป็นเส้นตรง (เรือ/บิน)';
+  };
+  const hit = cachedRoad(id, rt);
+  if (hit) return paint(hit);
+  info.innerHTML = '<i class="ti ti-loader-2 spin"></i> กำลังคำนวณตามถนน…';
+  roadRoute(id, rt).then(r => { paint(r); renderTimeline(); });
+}
 
 /* Journal entries linked to a pin or trip, plus a button to write a new one. */
 function journalLinks(entries, presetAttr) {
