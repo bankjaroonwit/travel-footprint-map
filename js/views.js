@@ -298,10 +298,56 @@ ACTIONS['arrive'] = async el => {
   S.lastArrived = { trip: tripId, pin: p.id };
   const finished = await settlePlans();
   renderAll();
-  reopenTrip(tripId);
+  openCheckin(p, tripId);
   const badge = computeBadges().find(b => b.done && !before.badges.has(b.id));
   if (finished) toast(`ครบทุกที่แล้ว! ย้าย "${finished.name}" ไปอยู่ในทริปที่ไปแล้ว`, 3500);
-  else toast(badge ? `ได้แสตมป์ใหม่: ${badge.name}` : `ถึง ${p.name} แล้ว`, 2600);
+  else if (badge) toast(`ได้แสตมป์ใหม่: ${badge.name}`, 3000);
+};
+
+/* Right after "arrived": take photos, give stars and write a line while you're there.
+   The place is already saved as visited, so "later" just goes back to the trip. */
+function openCheckin(p, tripId) {
+  draft = JSON.parse(JSON.stringify(p));
+  draft._checkinTrip = tripId;
+  openSheet(`
+    ${sheetHead(`ถึง ${esc(p.name)} แล้ว`)}
+    <div id="checkin">
+      <label class="btn primary block cam-btn"><i class="ti ti-camera"></i> ถ่ายรูป
+        <input type="file" id="f-cam" accept="image/*" capture="environment" hidden></label>
+      <div class="photos" id="f-photos"></div>
+      <div class="field">
+        <span class="label">ชอบที่นี่แค่ไหน</span>
+        <div class="stars" id="f-stars">
+          ${[1, 2, 3, 4, 5].map(i => `<button type="button" data-action="f-star" data-v="${i}" class="${i <= draft.rating ? 'on' : ''}" aria-label="${i} ดาว">★</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-note">เป็นยังไงบ้าง</label>
+        <textarea class="input" id="f-note" placeholder="วิวสวยมาก, ร้านนี้ต้องลอง, คนเยอะ...">${esc(draft.note)}</textarea>
+      </div>
+      <div class="row">
+        <button class="btn" data-action="checkin-later">ไว้ทีหลัง</button>
+        <button class="btn primary" data-action="checkin-save">บันทึก</button>
+      </div>
+    </div>`);
+  renderDraftPhotos();
+}
+ACTIONS['checkin-later'] = () => {
+  const id = draft && draft._checkinTrip;
+  draft = null;
+  if (id && tripById(id)) { openTripDetail(id); renderTimeline(); } else closeSheet();
+};
+ACTIONS['checkin-save'] = async () => {
+  const d = draft, p = d && pinById(d.id);
+  if (!p) return closeSheet();
+  Object.assign(p, { photos: d.photos, rating: d.rating, note: ($('#f-note').value || '').trim(), updatedAt: Date.now() });
+  await DB.put('pins', p);
+  const id = d._checkinTrip;
+  draft = null;
+  renderAll();
+  if (id && tripById(id)) openTripDetail(id); else closeSheet();
+  toast(p.photos.length ? `บันทึกรูปและรีวิว ${p.name} แล้ว` : `บันทึกรีวิว ${p.name} แล้ว`);
+  requestPersist();
 };
 /* Skip for now: move this place to the end of the order. */
 ACTIONS['skip-stop'] = async el => {

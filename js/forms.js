@@ -468,7 +468,7 @@ document.addEventListener('change', e => {
       if (tr && !tr.value) { const s = suggestTrip(t.value); if (s) tr.value = s; }
       break;
     }
-    case 'f-files': addPhotos([...t.files]); break;
+    case 'f-files': case 'f-cam': addPhotos([...t.files]).finally(() => { t.value = ''; }); break;
     case 'photo-import': importFromPhotos([...t.files]).finally(() => { t.value = ''; }); break;
     case 'flt-trip': S.filter.trip = t.value; applyFilter(); break;
     case 'flt-wish': S.filter.wish = t.checked; applyFilter(); break;

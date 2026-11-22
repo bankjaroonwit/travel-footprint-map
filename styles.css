@@ -195,6 +195,8 @@ textarea.input { min-height: 84px; resize: vertical; }
 .stars button { border: 0; background: none; font-size: 28px; line-height: 1; color: var(--border); padding: 0 2px; }
 .stars button.on { color: var(--star); }
 .photos { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 4px; }
+.cam-btn { padding: 14px 12px; font-size: 16px; margin-bottom: 4px; }
+#checkin .photos { margin-bottom: 10px; }
 .thumb { position: relative; flex: 0 0 auto; }
 .thumb img { width: 78px; height: 78px; object-fit: cover; border-radius: 10px; display: block; }
 .thumb button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: #000b; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
