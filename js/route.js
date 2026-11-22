@@ -15,7 +15,7 @@ const roundTrip = () => Prefs.get('roundTrip', false);
 
 const routeKey = pts => pts.map(p => p.lat.toFixed(5) + ',' + p.lng.toFixed(5)).join(';');
 function tripPoints(id, rt = roundTrip()) {
-  const pts = tripPins(id).map(p => ({ lat: p.lat, lng: p.lng }));
+  const pts = tripStops(id).map(p => ({ lat: p.lat, lng: p.lng }));
   if (rt && pts.length > 1) pts.push(pts[0]);
   return pts;
 }

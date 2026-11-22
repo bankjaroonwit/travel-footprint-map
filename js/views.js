@@ -43,7 +43,7 @@ function placeItem(p, lead = '') {
 }
 
 function renderTimeline() {
-  const segs = [['places', 'สถานที่', visited().length], ['trips', 'ทริป', S.trips.length], ['wish', 'อยากไป', wishes().length]];
+  const segs = [['places', 'สถานที่', visited().length], ['trips', 'ทริป', doneTrips().length], ['wish', 'อยากไป', wishes().length]];
   $('#tl-seg').innerHTML = `<div class="seg wide">${segs.map(([k, l, n]) =>
     `<button data-action="tl-tab" data-v="${k}" class="${S.tl === k ? 'on' : ''}">${l} <span class="cnt">${n}</span></button>`).join('')}</div>`;
   const el = $('#timeline');
@@ -57,15 +57,20 @@ function renderTimeline() {
     if (focused) $('#tl-q').focus();
     renderPlacesList();
   } else if (S.tl === 'trips') {
-    const trips = [...S.trips].sort((a, b) => (tripRange(b).start || '9').localeCompare(tripRange(a).start || '9'));
+    const trips = doneTrips().sort((a, b) => (tripRange(b).start || '9').localeCompare(tripRange(a).start || '9'));
     el.innerHTML = `<button class="btn block" data-action="new-trip"><i class="ti ti-plus"></i> สร้างทริป</button>` +
       (trips.length ? trips.map(tripCard).join('')
         : `<div class="empty"><i class="ti ti-route"></i>ยังไม่มีทริป<br>รวมหลายที่ที่ไปในครั้งเดียวกันเป็นทริป แล้วดูเส้นทางบนแผนที่ได้</div>`);
   } else {
     const list = wishes().sort((a, b) => b.createdAt - a.createdAt);
-    el.innerHTML = list.length
+    const plans = planTrips().sort((a, b) => (tripRange(a).start || '9').localeCompare(tripRange(b).start || '9'));
+    el.innerHTML = `
+      <div class="sec-title"><i class="ti ti-map-route"></i> ทริปที่วางแผนไว้</div>
+      ${plans.map(tripCard).join('')}
+      <button class="btn block" data-action="new-plan"><i class="ti ti-plus"></i> วางแผนทริปใหม่</button>
+      <div class="sec-title"><i class="ti ti-heart"></i> ที่อยากไป</div>` + (list.length
       ? `<p class="muted small" style="margin-top:0">ไปถึงแล้วเมื่อไหร่ เปิดหมุดแล้วกด "ไปมาแล้ว" ได้เลย</p>${list.map(p => placeItem(p)).join('')}`
-      : `<div class="empty"><i class="ti ti-heart"></i>ยังไม่มีที่อยากไป<br>แตะบนแผนที่ แล้วเลือก "เพิ่มในที่อยากไป"</div>`;
+      : `<div class="empty"><i class="ti ti-heart"></i>ยังไม่มีที่อยากไป<br>แตะบนแผนที่ แล้วเลือก "เพิ่มในที่อยากไป"</div>`);
   }
 }
 ACTIONS['tl-tab'] = el => { S.tl = el.dataset.v; renderTimeline(); };
@@ -93,7 +98,7 @@ function renderPlacesList() {
 }
 
 function tripStats(t) {
-  const ps = tripPins(t.id);
+  const ps = tripStops(t.id);
   return {
     ps,
     provinces: new Set(ps.map(p => p.province).filter(Boolean)).size,
@@ -110,8 +115,8 @@ function tripCard(t) {
       <div class="cover">${st.cover ? `<img src="${st.cover}" alt="" loading="lazy">` : '<i class="ti ti-route"></i>'}</div>
       <div class="body">
         <div class="t">${esc(t.name)}</div>
-        <div class="s">${esc(fmtRange(r.start, r.end) || 'ยังไม่มีวันที่')}</div>
-        <div class="s">${st.ps.length} ที่ · ${where} · ${fmtKm(st.km)} กม.</div>
+        <div class="s">${t.plan ? '<i class="ti ti-calendar-event"></i> ' : ''}${esc(fmtRange(r.start, r.end) || (t.plan ? 'ยังไม่กำหนดวัน' : 'ยังไม่มีวันที่'))}</div>
+        <div class="s">${st.ps.length} ที่ · ${t.plan ? '' : where + ' · '}${fmtKm(st.km)} กม.${t.plan && st.ps.length ? ` · ไปแล้ว ${st.ps.filter(p => p.status !== 'wish').length}` : ''}</div>
       </div>
     </button>`;
 }
@@ -238,7 +243,7 @@ function openTripDetail(id) {
   openSheet(`
     ${sheetHead(esc(t.name))}
     ${st.cover ? `<div class="gallery"><img src="${st.cover}" alt=""></div>` : ''}
-    <div class="muted">${esc(fmtRange(r.start, r.end) || 'ยังไม่มีวันที่')}</div>
+    <div class="muted">${t.plan ? `<span class="plan-tag"><i class="ti ti-map-route"></i> วางแผนไว้</span> ` : ''}${esc(fmtRange(r.start, r.end) || (t.plan ? 'ยังไม่กำหนดวัน' : 'ยังไม่มีวันที่'))}</div>
     <div class="trip-stats">
       <div><b>${st.ps.length}</b><span>สถานที่</span></div>
       <div><b>${st.countries > 1 ? st.countries : st.provinces}</b><span>${st.countries > 1 ? 'ประเทศ' : 'จังหวัด'}</span></div>
@@ -249,11 +254,12 @@ function openTripDetail(id) {
       <button class="rt-btn" data-action="toggle-roundtrip" data-id="${t.id}" aria-pressed="false"><i class="ti ti-arrows-exchange"></i> ไป-กลับ</button>
     </div>` : ''}
     ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
-    ${st.ps.length > 0 ? `<button class="btn primary block" data-action="show-route" data-id="${t.id}"><i class="ti ti-route"></i> ดูเส้นทางบนแผนที่</button>` : ''}
-    ${st.ps.length ? st.ps.map((p, i) => placeItem(p, `<span class="num">${i + 1}</span>`)).join('')
+    ${t.plan && st.ps.length ? `<button class="btn primary block" data-action="plan-finish" data-id="${t.id}"><i class="ti ti-circle-check"></i> ไปทริปนี้มาแล้ว</button>` : ''}
+    ${st.ps.length > 0 ? `<button class="btn ${t.plan ? '' : 'primary'} block" data-action="show-route" data-id="${t.id}" ${t.plan ? 'style="margin-top:8px"' : ''}><i class="ti ti-route"></i> ดูเส้นทางบนแผนที่</button>` : ''}
+    ${t.plan ? planStops(t, st.ps) : st.ps.length ? st.ps.map((p, i) => placeItem(p, `<span class="num">${i + 1}</span>`)).join('')
       : '<p class="muted small">ยังไม่มีหมุดในทริปนี้ ตอนปักหมุดให้เลือกทริปนี้ในช่อง "ทริป"</p>'}
-    <h3>ไดอารี่ของทริปนี้</h3>
-    ${journalLinks(S.journal.filter(j => j.tripId === t.id), `data-trip="${t.id}"`)}
+    ${t.plan ? '' : `<h3>ไดอารี่ของทริปนี้</h3>
+    ${journalLinks(S.journal.filter(j => j.tripId === t.id), `data-trip="${t.id}"`)}`}
     <div class="row" style="margin-top:8px">
       <button class="btn danger" data-action="delete-trip" data-id="${t.id}"><i class="ti ti-trash"></i> ลบทริป</button>
       <button class="btn" data-action="edit-trip" data-id="${t.id}"><i class="ti ti-edit"></i> แก้ไข</button>
@@ -261,6 +267,170 @@ function openTripDetail(id) {
   fillTripRoad(t.id);
 }
 ACTIONS['open-trip'] = el => openTripDetail(el.dataset.id);
+
+/* Stops of a planned trip, with buttons to change the order. */
+function planStops(t, ps) {
+  const rows = ps.map((p, i) => `
+    <div class="stop">
+      ${placeItem(p, `<span class="num ${p.status !== 'wish' ? 'done' : ''}">${p.status !== 'wish' ? '<i class="ti ti-check"></i>' : i + 1}</span>`)}
+      <div class="stop-move">
+        <button data-action="stop-move" data-id="${p.id}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนขึ้น"><i class="ti ti-chevron-up"></i></button>
+        <button data-action="stop-move" data-id="${p.id}" data-d="1" ${i === ps.length - 1 ? 'disabled' : ''} aria-label="เลื่อนลง"><i class="ti ti-chevron-down"></i></button>
+      </div>
+    </div>`).join('');
+  return `${ps.length ? '' : '<p class="muted small">ยังไม่มีที่ในทริปนี้ เพิ่มจากรายการที่อยากไปได้เลย</p>'}
+    ${rows}
+    <div class="row plan-actions">
+      <button class="btn" data-action="plan-add" data-id="${t.id}"><i class="ti ti-heart-plus"></i> เพิ่มที่อยากไป</button>
+      ${ps.length > 2 ? `<button class="btn" data-action="plan-sort" data-id="${t.id}"><i class="ti ti-route-2"></i> เรียงให้ใกล้สุด</button>` : ''}
+    </div>
+    <p class="muted small">ที่ใหม่ที่ยังไม่อยู่ในรายการ ให้แตะบนแผนที่ เลือก "อยากไป" แล้วเลือกทริปนี้ในช่อง "ทริปที่วางแผนไว้"</p>`;
+}
+
+/* Re-numbers a planned trip's stops in the given order and saves them. */
+async function saveStopOrder(list) {
+  list.forEach((p, i) => { p.seq = i + 1; });
+  await DB.putMany('pins', list);
+}
+function reopenTrip(id) {
+  const sheet = $('#sheet'), top = sheet.scrollTop;
+  openTripDetail(id);
+  sheet.scrollTop = top;
+  renderTimeline();
+  if (S.routeTrip === id) showRoute(id, { keepView: true });
+}
+ACTIONS['stop-move'] = async el => {
+  const p = pinById(el.dataset.id), list = tripStops(p.tripId), i = list.indexOf(p), j = i + +el.dataset.d;
+  if (j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  await saveStopOrder(list);
+  reopenTrip(p.tripId);
+};
+/* Shortest order (straight-line), starting from the current first stop: nearest neighbour, then 2-opt. */
+ACTIONS['plan-sort'] = async el => {
+  const id = el.dataset.id, ps = tripStops(id);
+  if (ps.length < 3) return;
+  const rest = ps.slice(1), order = [ps[0]];
+  while (rest.length) {
+    const last = order[order.length - 1];
+    let k = 0;
+    rest.forEach((p, i) => { if (haversine(last, p) < haversine(last, rest[k])) k = i; });
+    order.push(rest.splice(k, 1)[0]);
+  }
+  for (let improved = true, n = 0; improved && n < 50; n++) {
+    improved = false;
+    for (let i = 1; i < order.length - 1; i++) for (let j = i + 1; j < order.length; j++) {
+      const a = order[i - 1], b = order[i], c = order[j], d = order[j + 1];
+      const before = haversine(a, b) + (d ? haversine(c, d) : 0), after = haversine(a, c) + (d ? haversine(b, d) : 0);
+      if (after < before - 1e-6) { order.splice(i, j - i + 1, ...order.slice(i, j + 1).reverse()); improved = true; }
+    }
+  }
+  const changed = order.some((p, i) => p !== ps[i]);
+  await saveStopOrder(order);
+  reopenTrip(id);
+  toast(changed ? 'เรียงลำดับใหม่ให้ระยะทางสั้นลงแล้ว' : 'ลำดับนี้สั้นที่สุดแล้ว');
+};
+/* Pick wishes to put into a planned trip. */
+let planPick = null;
+ACTIONS['plan-add'] = el => {
+  const t = tripById(el.dataset.id);
+  const list = wishes().filter(p => p.tripId !== t.id).sort((a, b) => b.createdAt - a.createdAt);
+  planPick = { id: t.id, sel: new Set() };
+  openSheet(`
+    ${sheetHead('เพิ่มเข้า ' + esc(t.name))}
+    ${list.length ? `<p class="muted small" style="margin-top:0">แตะเลือกที่ที่จะไปในทริปนี้</p>
+      ${list.map(p => {
+        const other = p.tripId && tripById(p.tripId);
+        return `<button class="item pick-item" data-action="plan-pick" data-id="${p.id}">${thumbHtml(p)}
+          <div><div class="t">${esc(p.name)}</div><div class="s">${esc(placeLabel(p) || 'อยากไป')}${other ? ` · อยู่ใน ${esc(other.name)}` : ''}</div></div>
+          <i class="ti ti-circle pick-mark"></i></button>`;
+      }).join('')}
+      <div class="row plan-pick-bar">
+        <button class="btn" data-action="open-trip" data-id="${t.id}">ยกเลิก</button>
+        <button class="btn primary" data-action="plan-add-save" id="plan-add-save" disabled>เพิ่ม</button>
+      </div>`
+    : `<div class="empty"><i class="ti ti-heart"></i>ไม่มีที่อยากไปที่ยังไม่อยู่ในทริปนี้<br>แตะบนแผนที่ แล้วเลือก "อยากไป" เพื่อเพิ่ม</div>
+      <button class="btn block" data-action="open-trip" data-id="${t.id}">กลับไปที่ทริป</button>`}`);
+};
+ACTIONS['plan-pick'] = el => {
+  const id = el.dataset.id, s = planPick.sel;
+  s.has(id) ? s.delete(id) : s.add(id);
+  el.classList.toggle('on', s.has(id));
+  el.querySelector('.pick-mark').className = `ti ${s.has(id) ? 'ti-circle-check-filled' : 'ti-circle'} pick-mark`;
+  const b = $('#plan-add-save');
+  b.disabled = !s.size;
+  b.textContent = s.size ? `เพิ่ม ${s.size} ที่` : 'เพิ่ม';
+};
+ACTIONS['plan-add-save'] = async () => {
+  const { id, sel } = planPick;
+  let seq = nextSeq(id);
+  const ps = [...sel].map(pinById).filter(Boolean);
+  ps.forEach(p => { p.tripId = id; p.seq = seq++; p.updatedAt = Date.now(); });
+  await DB.putMany('pins', ps);
+  planPick = null;
+  renderAll();
+  openTripDetail(id);
+  toast(`เพิ่ม ${ps.length} ที่เข้าทริปแล้ว`);
+};
+
+/* "Been on this trip": one step that marks the places you went as visited, puts the ones you skipped
+   back on the wish list, and moves the trip to the trips you've taken. */
+let finishSel = null;
+ACTIONS['plan-finish'] = el => {
+  const t = tripById(el.dataset.id), ps = tripStops(t.id);
+  const start = t.start && t.start <= today() ? t.start : today();
+  const end = t.end && t.end >= start && t.end <= today() ? t.end : start;
+  finishSel = { id: t.id, sel: new Set(ps.map(p => p.id)) };
+  openSheet(`
+    ${sheetHead('ไปทริปนี้มาแล้ว')}
+    <div class="row">
+      <div class="field"><label for="fin-start">ไปวันที่</label><input class="input" type="date" id="fin-start" value="${start}" max="${today()}"></div>
+      <div class="field"><label for="fin-end">ถึงวันที่</label><input class="input" type="date" id="fin-end" value="${end}" max="${today()}"></div>
+    </div>
+    <p class="muted small" style="margin-top:0">ได้ไปที่ไหนบ้าง? ที่ไม่ได้ไปให้แตะเอาออก จะกลับไปอยู่ในรายการอยากไปเหมือนเดิม</p>
+    ${ps.map(p => {
+      const was = p.status !== 'wish';
+      return `<button class="item pick-item on" ${was ? 'disabled' : `data-action="fin-pick" data-id="${p.id}"`}>${thumbHtml(p)}
+        <div><div class="t">${esc(p.name)}</div><div class="s">${was ? `ไปแล้ว · ${fmtDate(p.date)}` : esc(placeLabel(p) || '')}</div></div>
+        <i class="ti ti-circle-check-filled pick-mark"></i></button>`;
+    }).join('')}
+    <div class="err" id="fin-err" hidden>เลือกอย่างน้อย 1 ที่</div>
+    <div class="row plan-pick-bar">
+      <button class="btn" data-action="open-trip" data-id="${t.id}">ยกเลิก</button>
+      <button class="btn primary" data-action="fin-save" id="fin-save">บันทึก ${ps.length} ที่</button>
+    </div>`);
+};
+ACTIONS['fin-pick'] = el => {
+  const id = el.dataset.id, s = finishSel.sel;
+  s.has(id) ? s.delete(id) : s.add(id);
+  el.classList.toggle('on', s.has(id));
+  el.querySelector('.pick-mark').className = `ti ${s.has(id) ? 'ti-circle-check-filled' : 'ti-circle'} pick-mark`;
+  $('#fin-save').textContent = `บันทึก ${s.size} ที่`;
+  $('#fin-err').hidden = true;
+};
+ACTIONS['fin-save'] = async () => {
+  const { id, sel } = finishSel, t = tripById(id), ps = tripStops(id);
+  if (!sel.size) { $('#fin-err').hidden = false; return; }
+  let start = $('#fin-start').value || today(), end = $('#fin-end').value || start;
+  if (end < start) [start, end] = [end, start];
+  const before = snapshot();
+  const changed = [];
+  for (const p of ps) {
+    if (p.status !== 'wish') continue;
+    if (sel.has(p.id)) Object.assign(p, { status: 'visited', date: start, fromWish: true });
+    else Object.assign(p, { tripId: '', seq: 0 });
+    p.updatedAt = Date.now();
+    changed.push(p);
+  }
+  if (changed.length) await DB.putMany('pins', changed);
+  Object.assign(t, { plan: false, start, end });
+  await DB.put('trips', t);
+  finishSel = null;
+  renderAll();
+  openTripDetail(id);
+  const badge = computeBadges().find(b => b.done && !before.badges.has(b.id));
+  toast(badge ? `ได้แสตมป์ใหม่: ${badge.name}` : `บันทึกทริป "${t.name}" แล้ว`, 3000);
+};
 
 /* Fills in the road distance and driving time on an open trip page (looked up in the background). */
 function fillTripRoad(id) {
@@ -512,7 +682,7 @@ function computeBadges() {
     ['temple', 'สายบุญ',             'ti-building-castle', '#D85A30', n('temple'), 10, 'ที่'],
     ['food',   'สายกิน',             'ti-coffee',          '#BA7517', n('food') + n('cafe') + n('market'), 10, 'ที่'],
     ['camp',   'สายแคมป์',            'ti-tent',            '#639922', n('nature') + n('camping') + n('waterfall'), 5, 'ที่'],
-    ['trip5',  'นักจัดทริป',          'ti-route',           '#993C1D', S.trips.length, 5, 'ทริป'],
+    ['trip5',  'นักจัดทริป',          'ti-route',           '#993C1D', doneTrips().length, 5, 'ทริป'],
     ['dream',  'ฝันเป็นจริง',          'ti-heart',           '#D4537E', visited().filter(p => p.fromWish).length, 1, 'ที่'],
     ['j1',     'นักบันทึก',           'ti-notebook',        '#185FA5', S.journal.length, 1, 'บันทึก'],
     ['j20',    'นักเขียนการเดินทาง',    'ti-feather',         '#534AB7', S.journal.length, 20, 'บันทึก'],
@@ -807,6 +977,7 @@ function showWelcome() {
 ACTIONS['load-demo'] = async () => {
   const tA = normTrip({ id: 'demo-trip-north', name: 'เหนือหน้าหนาว', start: '2025-12-12', end: '2025-12-16', note: 'ทริปแรกกับเพื่อนสนิท', demo: true });
   const tB = normTrip({ id: 'demo-trip-south', name: 'ทะเลใต้สงกรานต์', start: '2026-04-10', end: '2026-04-13', demo: true });
+  const tC = normTrip({ id: 'demo-trip-plan', name: 'กาญจน์ฯ วันหยุดยาว', plan: true, note: 'ไปกับครอบครัว ขับรถไปเอง', demo: true });
   const rows = [
     ['วัดพระธาตุดอยสุเทพ', 18.8049, 98.9216, 'temple', '2025-12-12', 5, tA.id, 'ขึ้นบันไดนาคตอนเช้า วิวเมืองเชียงใหม่สวยมาก'],
     ['ดอยอินทนนท์', 18.5883, 98.4867, 'mountain', '2025-12-14', 5, tA.id, 'ตื่นตีสี่มาดูทะเลหมอก หนาว 6 องศา แต่คุ้มสุดๆ'],
@@ -822,9 +993,10 @@ ACTIONS['load-demo'] = async () => {
   ];
   const pins = rows.map(([name, lat, lng, category, date, rating, tripId, note], i) =>
     normPin(newPin(lat, lng, { id: 'demo-' + i, name, category, date, rating, tripId, note, demo: true })));
-  const wishRows = [['เกาะหลีเป๊ะ', 6.4881, 99.3047, 'beach'], ['สะพานมอญ สังขละบุรี', 15.158, 98.453, 'city'], ['บลูลากูน ไอซ์แลนด์', 63.8804, -22.4495, 'nature']];
-  wishRows.forEach(([name, lat, lng, category], i) =>
-    pins.push(normPin(newPin(lat, lng, { id: 'demo-w' + i, name, category, status: 'wish', date: '', demo: true }))));
+  const wishRows = [['เกาะหลีเป๊ะ', 6.4881, 99.3047, 'beach'], ['สะพานมอญ สังขละบุรี', 15.158, 98.453, 'city', 3], ['บลูลากูน ไอซ์แลนด์', 63.8804, -22.4495, 'nature'],
+    ['สะพานข้ามแม่น้ำแคว', 14.0409, 99.5036, 'temple', 1], ['น้ำตกเอราวัณ', 14.3683, 99.1439, 'waterfall', 2]];
+  wishRows.forEach(([name, lat, lng, category, seq], i) =>
+    pins.push(normPin(newPin(lat, lng, { id: 'demo-w' + i, name, category, status: 'wish', date: '', demo: true, ...(seq ? { tripId: tC.id, seq } : {}) }))));
   const lastYear = String(new Date().getFullYear() - 1);
   const entries = [
     { id: 'demo-j0', date: '2025-12-14', title: 'ทะเลหมอกครั้งแรก', mood: 'great', weather: 'cold', tripId: tA.id, pinIds: ['demo-1'],
@@ -836,10 +1008,10 @@ ACTIONS['load-demo'] = async () => {
     { id: 'demo-j3', date: `${lastYear}-${today().slice(5)}`, title: 'เริ่มวางแผนทริปเหนือ', mood: 'good', weather: '', tripId: '', pinIds: [],
       body: 'นั่งไล่ดูรูปทะเลหมอกในอินเทอร์เน็ตทั้งคืน ตัดสินใจแล้วว่าธันวาคมนี้ต้องไปให้ได้' },
   ].map(e => normJournal({ ...e, demo: true }));
-  await DB.putMany('trips', [tA, tB]);
+  await DB.putMany('trips', [tA, tB, tC]);
   await DB.putMany('pins', pins);
   await DB.putMany('journal', entries);
-  [tA, tB].forEach(t => upsert(S.trips, t));
+  [tA, tB, tC].forEach(t => upsert(S.trips, t));
   pins.forEach(p => upsert(S.pins, p));
   entries.forEach(e => upsert(S.journal, e));
   closeSheet();

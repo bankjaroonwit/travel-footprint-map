@@ -40,7 +40,6 @@ function openPinForm(p) {
   const provField = GEO.provinceNames.length
     ? `<select class="input" id="f-prov"><option value="">ไม่ระบุ</option>${GEO.provinceNames.map(n => `<option ${n === d.province ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`
     : `<input class="input" id="f-prov" value="${esc(d.province)}" placeholder="เชียงใหม่">`;
-  const trips = [...S.trips].sort((a, b) => (tripRange(b).start || '').localeCompare(tripRange(a).start || ''));
   const title = isNew ? (d.status === 'wish' ? 'เพิ่มที่อยากไป' : 'ปักหมุดใหม่') : 'แก้ไขหมุด';
 
   openSheet(`
@@ -60,17 +59,13 @@ function openPinForm(p) {
         ${isNew && !d.name ? '' : '<button type="button" class="link near-btn" data-action="f-near-load"><i class="ti ti-map-search"></i> ลืมชื่อ? ดูสถานที่แถวนี้</button>'}
       </div>
       <div class="loc-line"><i class="ti ti-map-pin"></i><span>${esc(locText(d))}</span>·<button type="button" class="link" data-action="f-move">เปลี่ยนตำแหน่ง</button></div>
-      <div class="row v-only">
-        <div class="field"><label for="f-date">วันที่ไป</label><input class="input" type="date" id="f-date" value="${esc(d.date)}" max="${today()}"></div>
-        <div class="field"><label for="f-trip">ทริป</label>
-          <select class="input" id="f-trip">
-            <option value="">ไม่อยู่ในทริป</option>
-            ${trips.map(t => `<option value="${t.id}" ${t.id === d.tripId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
-            <option value="__new">+ สร้างทริปใหม่</option>
-          </select>
+      <div class="row">
+        <div class="field v-only"><label for="f-date">วันที่ไป</label><input class="input" type="date" id="f-date" value="${esc(d.date)}" max="${today()}"></div>
+        <div class="field"><label for="f-trip" id="f-trip-label">${d.status === 'wish' ? 'ทริปที่วางแผนไว้' : 'ทริป'}</label>
+          <select class="input" id="f-trip">${tripOptions(d.status, d.tripId)}</select>
         </div>
       </div>
-      <div class="field v-only" id="f-trip-new-wrap" hidden>
+      <div class="field" id="f-trip-new-wrap" hidden>
         <label for="f-trip-new">ชื่อทริปใหม่</label>
         <input class="input" id="f-trip-new" placeholder="เหนือหน้าหนาว" maxlength="80">
         <div class="err" id="f-trip-new-err" hidden>ตั้งชื่อทริปก่อน</div>
@@ -113,6 +108,20 @@ function openPinForm(p) {
   if (isNew && !d.name) loadNear(d.photos.length > 0);
 }
 
+/* Trip choices for a pin: a wish can only go into a planned trip; a visited place into any trip. */
+function tripOptions(status, sel) {
+  const byStart = (a, b) => (tripRange(b).start || '').localeCompare(tripRange(a).start || '');
+  const opt = t => `<option value="${t.id}" ${t.id === sel ? 'selected' : ''}>${esc(t.name)}</option>`;
+  const plans = planTrips().sort(byStart), done = doneTrips().sort(byStart);
+  let html = `<option value="">ไม่อยู่ในทริป</option>`;
+  if (status === 'wish') html += plans.map(opt).join('');
+  else {
+    if (done.length) html += `<optgroup label="ทริปที่ไปแล้ว">${done.map(opt).join('')}</optgroup>`;
+    if (plans.length) html += `<optgroup label="ทริปที่วางแผนไว้">${plans.map(opt).join('')}</optgroup>`;
+  }
+  return html + `<option value="__new">+ ${status === 'wish' ? 'วางแผนทริปใหม่' : 'สร้างทริปใหม่'}</option>`;
+}
+
 function renderDraftPhotos() {
   const box = $('#f-photos');
   if (!box) return;
@@ -134,8 +143,17 @@ function collectForm() {
 }
 
 ACTIONS['f-status'] = el => {
+  collectForm();
   draft.status = el.dataset.v;
   $('#pin-form').dataset.status = draft.status;
+  const tr = $('#f-trip');
+  if (tr) {
+    const keep = draft.tripId === '__new' || draft.status !== 'wish' || isPlan(tripById(draft.tripId)) ? draft.tripId : '';
+    tr.innerHTML = tripOptions(draft.status, keep);
+    tr.value = keep;
+    $('#f-trip-label').textContent = draft.status === 'wish' ? 'ทริปที่วางแผนไว้' : 'ทริป';
+    $('#f-trip-new-wrap').hidden = keep !== '__new';
+  }
   $$('[data-action="f-status"]').forEach(b => b.classList.toggle('on', b === el));
 };
 ACTIONS['f-cat'] = el => {
@@ -187,22 +205,22 @@ ACTIONS['save-pin'] = async () => {
     $('#f-name').focus();
     return;
   }
-  if (d.status === 'wish') {
-    d.date = ''; d.rating = 0; d.tripId = '';
-  } else {
-    if (!d.date) d.date = today();
-    if (d.tripId === '__new') {
-      if (!d._newTrip) {
-        $('#f-trip-new-err').hidden = false;
-        $('#f-trip-new').focus();
-        return;
-      }
-      const t = normTrip({ id: uid(), name: d._newTrip });
-      await DB.put('trips', t);
-      S.trips.push(t);
-      d.tripId = t.id;
+  if (d.status === 'wish') { d.date = ''; d.rating = 0; }
+  else if (!d.date) d.date = today();
+  if (d.tripId === '__new') {
+    if (!d._newTrip) {
+      $('#f-trip-new-err').hidden = false;
+      $('#f-trip-new').focus();
+      return;
     }
+    const t = normTrip({ id: uid(), name: d._newTrip, plan: d.status === 'wish' });
+    await DB.put('trips', t);
+    S.trips.push(t);
+    d.tripId = t.id;
   }
+  if (d.status === 'wish' && !isPlan(tripById(d.tripId))) d.tripId = '';
+  const old = pinById(d.id);
+  if (d.tripId && (!old || old.tripId !== d.tripId)) d.seq = nextSeq(d.tripId);
   delete d._newTrip;
   d.updatedAt = Date.now();
 
@@ -214,8 +232,10 @@ ACTIONS['save-pin'] = async () => {
   draft = null;
   closeSheet();
   map.closePopup();
+  const finished = await settlePlans();
   renderAll();
-  celebrate(before, p, isNew);
+  if (finished) toast(`ไปครบทุกที่ใน "${finished.name}" แล้ว ย้ายไปอยู่ในทริปที่ไปแล้ว`, 3500);
+  else celebrate(before, p, isNew);
   requestPersist();
 };
 
@@ -229,26 +249,42 @@ function celebrate(before, p, isNew) {
   toast(p.status === 'wish' ? 'เพิ่มในที่อยากไปแล้ว' : (isNew ? 'ปักหมุดแล้ว' : 'บันทึกแล้ว'));
 }
 
+/* A planned trip whose places have all been visited becomes an ordinary trip. Returns that trip, if any. */
+async function settlePlans() {
+  let done = null;
+  for (const t of planTrips()) {
+    const ps = S.pins.filter(p => p.tripId === t.id);
+    if (ps.length && ps.every(p => p.status !== 'wish')) {
+      t.plan = false;
+      await DB.put('trips', t);
+      done = t;
+    }
+  }
+  return done;
+}
+
 /* ---------- trip form ---------- */
-function openTripForm(t) {
+function openTripForm(t, plan = false) {
   const isNew = !t;
-  tripDraft = t ? { ...t } : { id: uid(), name: '', start: '', end: '', note: '' };
+  tripDraft = t ? { ...t } : { id: uid(), name: '', start: '', end: '', note: '', plan };
   const d = tripDraft;
   openSheet(`
-    ${sheetHead(isNew ? 'สร้างทริป' : 'แก้ไขทริป')}
+    ${sheetHead(isNew ? (d.plan ? 'วางแผนทริป' : 'สร้างทริป') : 'แก้ไขทริป')}
     <div class="field">
       <label for="t-name">ชื่อทริป</label>
       <input class="input" id="t-name" value="${esc(d.name)}" placeholder="ทะเลใต้สงกรานต์" maxlength="80">
       <div class="err" id="t-name-err" hidden>ตั้งชื่อทริปก่อน</div>
     </div>
     <div class="row">
-      <div class="field"><label for="t-start">วันเริ่ม</label><input class="input" type="date" id="t-start" value="${esc(d.start)}"></div>
+      <div class="field"><label for="t-start">${d.plan ? 'วันที่จะไป' : 'วันเริ่ม'}</label><input class="input" type="date" id="t-start" value="${esc(d.start)}"></div>
       <div class="field"><label for="t-end">วันกลับ</label><input class="input" type="date" id="t-end" value="${esc(d.end)}"></div>
     </div>
-    <p class="muted small" style="margin-top:-6px">ไม่ใส่วันที่ก็ได้ แอพจะใช้วันที่ของหมุดในทริปแทน หมุดใหม่ที่วันที่ตรงกับช่วงนี้จะถูกจัดเข้าทริปให้อัตโนมัติ</p>
+    <p class="muted small" style="margin-top:-6px">${d.plan
+      ? 'ยังไม่รู้วันก็เว้นไว้ได้ บันทึกแล้วค่อยเพิ่มที่อยากไปเข้าทริป แล้วเรียงลำดับที่จะไป'
+      : 'ไม่ใส่วันที่ก็ได้ แอพจะใช้วันที่ของหมุดในทริปแทน หมุดใหม่ที่วันที่ตรงกับช่วงนี้จะถูกจัดเข้าทริปให้อัตโนมัติ'}</p>
     <div class="field">
       <label for="t-note">บันทึก</label>
-      <textarea class="input" id="t-note" placeholder="ไปกับใคร ทริปนี้เป็นยังไง">${esc(d.note)}</textarea>
+      <textarea class="input" id="t-note" placeholder="${d.plan ? 'ไปกับใคร งบเท่าไหร่ ต้องจองอะไรบ้าง' : 'ไปกับใคร ทริปนี้เป็นยังไง'}">${esc(d.note)}</textarea>
     </div>
     <div class="row">
       <button class="btn" data-action="close-sheet">ยกเลิก</button>
@@ -258,6 +294,7 @@ function openTripForm(t) {
 }
 
 ACTIONS['new-trip'] = () => openTripForm(null);
+ACTIONS['new-plan'] = () => openTripForm(null, true);
 ACTIONS['edit-trip'] = el => openTripForm(tripById(el.dataset.id));
 ACTIONS['save-trip'] = async () => {
   const name = $('#t-name').value.trim();
@@ -276,7 +313,7 @@ ACTIONS['save-trip'] = async () => {
 };
 ACTIONS['delete-trip'] = async el => {
   const t = tripById(el.dataset.id);
-  if (!t || !confirm(`ลบทริป "${t.name}" ใช่ไหม? หมุดในทริปจะยังอยู่ แค่ไม่ได้อยู่ในทริปนี้แล้ว`)) return;
+  if (!t || !confirm(`ลบทริป "${t.name}" ใช่ไหม? ${t.plan ? 'ที่อยากไปในทริปจะยังอยู่ในรายการอยากไป' : 'หมุดในทริปจะยังอยู่ แค่ไม่ได้อยู่ในทริปนี้แล้ว'}`)) return;
   const affected = S.pins.filter(p => p.tripId === t.id);
   affected.forEach(p => { p.tripId = ''; });
   if (affected.length) await DB.putMany('pins', affected);

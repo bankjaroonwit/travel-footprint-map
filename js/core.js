@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, storage and the click dispatcher. Loaded first. */
 
-const APP_VERSION = '2.11';
+const APP_VERSION = '2.12';
 
 const CATS = {
   beach:     { label: 'ทะเล',             icon: 'ti-beach',               color: '#378ADD' },
@@ -106,12 +106,22 @@ const stars = n => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
 const cat = key => CATS[key] || CATS.city;
 const fmtKm = km => Math.round(km).toLocaleString('th-TH');
 
-const byDate = (a, b) => (a.date || '').localeCompare(b.date || '') || a.createdAt - b.createdAt;
+const byDate = (a, b) => (a.date || '').localeCompare(b.date || '') || (a.seq || 0) - (b.seq || 0) || a.createdAt - b.createdAt;
 const visited = () => S.pins.filter(p => p.status !== 'wish');
 const wishes = () => S.pins.filter(p => p.status === 'wish');
 const pinById = id => S.pins.find(p => p.id === id);
 const tripById = id => S.trips.find(t => t.id === id);
 const tripPins = id => visited().filter(p => p.tripId === id).sort(byDate);
+/* Planned trips (made from the wish list) keep their stops in the order the user set; trips already
+   taken are in date order. */
+const isPlan = t => !!(t && t.plan);
+const bySeq = (a, b) => (a.seq || 0) - (b.seq || 0) || a.createdAt - b.createdAt;
+function tripStops(id) {
+  return isPlan(tripById(id)) ? S.pins.filter(p => p.tripId === id).sort(bySeq) : tripPins(id);
+}
+const doneTrips = () => S.trips.filter(t => !t.plan);
+const planTrips = () => S.trips.filter(t => t.plan);
+const nextSeq = id => Math.max(0, ...S.pins.filter(p => p.tripId === id).map(p => p.seq || 0)) + 1;
 function tripRange(t) {
   const ps = tripPins(t.id);
   const start = t.start || (ps[0] && ps[0].date) || '';
@@ -181,7 +191,8 @@ function normPin(p) {
     rating: Math.max(0, Math.min(5, Math.round(+p.rating || 0))),
     note: String(p.note || ''),
     photos: Array.isArray(p.photos) ? p.photos.filter(s => typeof s === 'string' && s.startsWith('data:image/')) : [],
-    tripId: status === 'wish' ? '' : String(p.tripId || ''),
+    tripId: String(p.tripId || ''),
+    seq: +p.seq || 0,
     fromWish: !!p.fromWish,
     demo: !!p.demo,
     createdAt: +p.createdAt || Date.now(),
@@ -198,6 +209,7 @@ function normTrip(t) {
     name: String(t.name || 'ทริปไม่มีชื่อ').slice(0, 80),
     start, end,
     note: String(t.note || ''),
+    plan: !!t.plan,
     demo: !!t.demo,
     createdAt: +t.createdAt || Date.now(),
   };

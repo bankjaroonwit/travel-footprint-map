@@ -94,7 +94,7 @@ function filtered() {
   const f = S.filter;
   return S.pins.filter(p => {
     if (f.cats.length && !f.cats.includes(p.category)) return false;
-    if (p.status === 'wish') return f.wish && f.year === 'all' && f.trip === 'all';
+    if (p.status === 'wish') return f.wish && f.year === 'all' && (f.trip === 'all' || p.tripId === f.trip);
     if (f.year !== 'all' && !p.date.startsWith(f.year)) return false;
     if (f.trip !== 'all' && p.tripId !== f.trip) return false;
     return true;
@@ -213,7 +213,7 @@ ACTIONS['cancel-pick'] = () => {
 /* Draws the trip straight away with straight dashed lines, then swaps in the road route once it's known
    (see route.js). Road legs are solid; flight/boat legs stay dashed. */
 function showRoute(tripId, opts = {}) {
-  const t = tripById(tripId), ps = tripPins(tripId);
+  const t = tripById(tripId), ps = tripStops(tripId);
   if (!t || !ps.length) return toast('ทริปนี้ยังไม่มีหมุด');
   routeLayer.clearLayers();
   const rt = roundTrip();
