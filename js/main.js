@@ -66,20 +66,6 @@ async function backfillLocations() {
   sheet.addEventListener('touchcancel', end, { passive: true });
 })();
 
-/* iPhone: opening the keyboard scrolls the whole page up, and it doesn't always come back when the
-   keyboard closes (or when returning from another app), leaving a gap at the edge of the screen.
-   The page itself never needs to scroll (each screen scrolls on its own), so put it back. */
-(function keepPageInPlace() {
-  const fix = () => { if (window.scrollY || window.scrollX || document.documentElement.scrollTop) window.scrollTo(0, 0); };
-  const soon = () => { setTimeout(fix, 60); setTimeout(fix, 400); };
-  document.addEventListener('focusout', soon);
-  window.addEventListener('scroll', () => { if (!document.activeElement || !document.activeElement.matches('input, textarea, select')) fix(); }, { passive: true });
-  if (window.visualViewport) visualViewport.addEventListener('resize', soon);
-  window.addEventListener('orientationchange', soon);
-  window.addEventListener('pageshow', soon);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') soon(); });
-})();
-
 /* Launch animation: stays until the data is loaded, and at least long enough to finish playing. */
 function hideSplash() {
   const sp = $('#splash');

@@ -12,7 +12,6 @@ function renderAll() {
 
 function switchView(name) {
   S.view = name;
-  document.body.dataset.view = name;
   $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   if (name === 'map') setTimeout(() => map.invalidateSize(), 0);
