@@ -163,17 +163,45 @@ ACTIONS['new-pin'] = el => {
   openPinForm(newPin(lat, lng, { status: el.dataset.status, name: el.dataset.name || '' }));
 };
 
+/* "You are here": the locate button turns on a live blue dot (with a circle showing how accurate it
+   is) and offers to pin that spot; pressing it again turns the dot off. Tap the dot to pin there.
+   The position stays on this device and is only watched while the app is open. */
+const ME = { watch: null, dot: null, ring: null, ll: null };
+function stopMe(msg) {
+  if (ME.watch != null) navigator.geolocation.clearWatch(ME.watch);
+  if (ME.dot) ME.dot.remove();
+  if (ME.ring) ME.ring.remove();
+  Object.assign(ME, { watch: null, dot: null, ring: null, ll: null });
+  $('[data-action="locate"]').classList.remove('on');
+  if (msg) toast(msg);
+}
 ACTIONS.locate = () => {
   if (!navigator.geolocation) return toast('เครื่องนี้หาตำแหน่งไม่ได้');
+  if (ME.watch != null) return stopMe('ปิดการแสดงตำแหน่งแล้ว');
   toast('กำลังหาตำแหน่ง…');
-  navigator.geolocation.getCurrentPosition(
+  $('[data-action="locate"]').classList.add('on');
+  let first = true;
+  ME.watch = navigator.geolocation.watchPosition(
     pos => {
-      const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
-      map.setView(ll, Math.max(map.getZoom(), 15), { animate: false });
-      offerPin(ll);
+      const ll = ME.ll = L.latLng(pos.coords.latitude, pos.coords.longitude), acc = pos.coords.accuracy || 0;
+      if (!ME.dot) {
+        ME.ring = L.circle(ll, { radius: acc, color: '#2f80ed', weight: 1, opacity: 0.5, fillColor: '#2f80ed', fillOpacity: 0.12, interactive: false }).addTo(map);
+        ME.dot = L.marker(ll, {
+          icon: L.divIcon({ className: 'me-wrap', html: '<div class="me-dot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }),
+          zIndexOffset: 2000, keyboard: false,
+        }).addTo(map).on('click', () => offerPin(ME.ll));
+      } else {
+        ME.dot.setLatLng(ll);
+        ME.ring.setLatLng(ll).setRadius(acc);
+      }
+      if (first) {
+        first = false;
+        map.setView(ll, Math.max(map.getZoom(), 15), { animate: false });
+        offerPin(ll);
+      }
     },
-    () => toast('หาตำแหน่งไม่ได้ ลองแตะบนแผนที่แทน'),
-    { enableHighAccuracy: true, timeout: 10000 }
+    err => stopMe(err && err.code === 1 ? 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง เปิดได้ในการตั้งค่าของเครื่อง' : 'หาตำแหน่งไม่ได้ ลองแตะบนแผนที่แทน'),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
   );
 };
 
